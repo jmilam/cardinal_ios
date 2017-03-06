@@ -12,7 +12,7 @@ class MainMenuController < UIViewController
 		img = nil
 		button = nil
 		# self.navigationItem.rightBarButtonItem = UIBarButtonItem.alloc.initWithImage(UIImage.imageNamed('settings_image.png'), style: UIBarButtonItemStylePlain, target: self, action: nil)
-		@headers = {"Transactions" => ["PCT", "PDL", "PLO", "PMV", "PUL"], "Label Printing" =>["Skid Label"]}
+		@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
 		@to_locations = ["","2110", "2400", "SAMPLE"]
 
 		#Sets initial Screen View and also gets initial accessor values from ScreenBuilder Model
@@ -85,7 +85,7 @@ class MainMenuController < UIViewController
 			subview.removeFromSuperview
 		end
 
-		case @header.text
+		case @header.text.match(/^\w+\s+/)[0].strip
 		when "PDL"
 			@builder.buildPDL(self)
 		when "PUL"
@@ -96,7 +96,7 @@ class MainMenuController < UIViewController
 			@builder.buildPCT(self)
 		when "PLO"
 			@builder.buildPLO(self)
-		when "Skid Label"
+		when "Skid"#"Skid Label"
 			@builder.buildSkidLabel(self)
 		else
 			@builder.buildPUL(self)

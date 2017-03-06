@@ -108,10 +108,7 @@ class ScreenBuilder < UIViewController
 			layout.view viewController.view
 			layout.subviews "table" => @table, "header" => @header, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50
-			# layout.vertical "|-0-[table(>=500)]-[alert_area]-0-|"
 			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-|"
-			# layout.horizontal "|-0-[alert_area(==400)]-0-|"
-			# layout.horizontal "|-0-[table(==400)]-[header]-0-|"
 			sharedLayoutParameters(layout)
 		end
 		viewController
@@ -119,16 +116,13 @@ class ScreenBuilder < UIViewController
 
 	def buildPUL(viewController)
 		#@header.text = "PUL"
-
+		@tag_num.becomeFirstResponder
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
 			layout.subviews "table" => @table, "header" => @header, "item_num" => @item_num, "tag_num" => @tag_num, "qty" => @qty, "from_loc" => @from_loc, "to_loc" => @to_loc, "submit" => @submit, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50
-			# layout.vertical "|-0-[table(>=500)]-[alert_area]-0-|"
-			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[item_num(==height)]-margin-[tag_num(==height)]-margin-[qty(==height)]-margin-[from_loc(==height)]-margin-[to_loc(==height)]-margin-[submit(==height)]-(>=10)-|"
-			# layout.horizontal "|-0-[alert_area(==400)]-0-|"
-			# layout.horizontal "|-0-[table(==400)]-[header]-0-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)]-margin-[item_num(==height)]-margin-[qty(==height)]-margin-[from_loc(==height)]-margin-[to_loc(==height)]-margin-[submit(==height)]-(>=10)-|"
 			sharedLayoutParameters(layout)
 		end
 
@@ -137,15 +131,12 @@ class ScreenBuilder < UIViewController
 
 	def buildPDL(viewController)
 		#@header.text = "PDL"
-
+		@tag_num.becomeFirstResponder
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
 			layout.subviews "table" => @table, "header" => @header, "item_num" => @item_num, "tag_num" => @tag_num, "from_loc" => @from_loc, "to_loc" => @to_loc, "submit" => @submit, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50
-			# layout.vertical "|-0-[table(>=500)]-[alert_area]-0-|"
-			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[item_num(==height)]-margin-[tag_num(==height)]-margin-[from_loc(==height)]-margin-[to_loc(==height)]-margin-[submit(==height)]-(>=10)-|"
-			# layout.horizontal "|-0-[alert_area(==400)]-0-|"
-			# layout.horizontal "|-0-[table(==400)]-[header]-0-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)]-margin-[item_num(==height)]-margin-[from_loc(==height)]-margin-[to_loc(==height)]-margin-[submit(==height)]-(>=10)-|"
 			sharedLayoutParameters(layout)
 		end
 
@@ -154,15 +145,12 @@ class ScreenBuilder < UIViewController
 
 	def buildPMV(viewController)
 		#@header.text = "PMV"
-
+		@tag_num.becomeFirstResponder
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
 			layout.subviews "table" => @table, "header" => @header, "tag_num" => @tag_num, "to_loc" => @to_loc, "submit" => @submit, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50
-			# layout.vertical "|-0-[table(>=500)]-[alert_area]-0-|"
 			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)]-margin-[to_loc(==height)]-margin-[submit(==height)]-(>=10)-|"
-			# layout.horizontal "|-0-[alert_area(==400)]-0-|"
-			# layout.horizontal "|-0-[table(==400)]-[header]-0-|"
 			sharedLayoutParameters(layout)
 		end
 
@@ -171,15 +159,12 @@ class ScreenBuilder < UIViewController
 
 	def buildPCT(viewController)
 		#@header.text = "PCT"
-
+		@tag_num.becomeFirstResponder
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
 			layout.subviews "table" => @table, "header" => @header, "item_num" => @item_num, "to_loc" => @to_loc, "lot" => @lot, "tag_num" => @tag_num, "qty" => @qty, "remarks" => @remarks, "submit" => @submit, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50
-			# layout.vertical "|-0-[table(>=500)]-[alert_area]-0-|"
-			layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[item_num(==height)]-margin-[to_loc(==height)]-margin-[lot(==height)]-margin-[tag_num(==height)]-margin-[qty(==height)]-margin-[remarks(==50)]-margin-[submit(==height)]-(>=10)-|"
-			# layout.horizontal "|-0-[alert_area(==400)]-0-|"
-			# layout.horizontal "|-0-[table(==400)]-[header]-0-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[tag_num(==height)]-margin-[item_num(==height)]-margin-[to_loc(==height)]-margin-[lot(==height)]-margin-[qty(==height)]-margin-[remarks(==50)]-margin-[submit(==height)]-(>=10)-|"
 			sharedLayoutParameters(layout)
 		end
 
@@ -188,15 +173,12 @@ class ScreenBuilder < UIViewController
 
 	def buildPLO(viewController)
 		#@header.text = "PLO"
-
+		@tag_num.becomeFirstResponder
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
 			layout.subviews "table" => @table, "header" => @header, "item_num" => @item_num, "tag_num" => @tag_num, "qty" => @qty, "from_loc" => @from_loc, "to_loc" => @to_loc, "from_site" => @from_site, "to_site" => @to_site, "submit" => @submit, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50
-			# layout.vertical "|-0-[table(>=500)]-[alert_area]-0-|"
-			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[item_num(==height)]-margin-[qty(==height)]-margin-[from_site(==height)]-margin-[to_site(==height)]-margin-[from_loc(==height)]-margin-[to_loc(==height)]-margin-[submit(==height)]-(>=10)-|"
-			# layout.horizontal "|-0-[alert_area(==400)]-0-|"
-			# layout.horizontal "|-0-[table(==400)]-[header]-0-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)]-margin-[item_num(==height)]-margin-[qty(==height)]-margin-[from_site(==height)]-margin-[to_site(==height)]-margin-[from_loc(==height)]-margin-[to_loc(==height)]-margin-[submit(==height)]-(>=10)-|"
 			sharedLayoutParameters(layout)
 		end
 
@@ -204,14 +186,12 @@ class ScreenBuilder < UIViewController
 	end
 
 	def buildSkidLabel(viewController)
+		@skid_num.becomeFirstResponder
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
 			layout.subviews "table" => @table, "header" => @header, "skid_num" => @skid_num, "submit" => @submit, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50
-			# layout.vertical "|-0-[table(>=500)]-[alert_area]-0-|"
 			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[skid_num(==height)]-margin-[submit(==height)]-(>=10)-|"
-			# layout.horizontal "|-0-[alert_area(==400)]-0-|"
-			# layout.horizontal "|-0-[table(==400)]-[header]-0-|"
 			sharedLayoutParameters(layout)
 		end
 	end
