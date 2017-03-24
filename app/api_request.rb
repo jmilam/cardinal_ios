@@ -21,7 +21,7 @@ class APIRequest
 			"http://localhost:3000/api/endura/cardinal_printing/#{type.downcase.gsub(" ", "_")}"	
 		else
 		  #"http://webapi.enduraproducts.com/api/endura/transactions/#{type.downcase}"
-		  "http://localhost:3000/api/endura/transactions/#{type.downcase}"
+		 	"http://localhost:3000/api/endura/transactions/#{type.downcase.match(/\w+/)[0]}"
 		end
 	end
 

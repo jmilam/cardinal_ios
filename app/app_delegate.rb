@@ -8,7 +8,7 @@ class AppDelegate
   	@username = nil
     @printer = nil
     rootViewController = LoginController.alloc.init
-
+    #rootViewController = MainMenuController.alloc.init
     navigationController = UINavigationController.alloc.initWithRootViewController(rootViewController)
 
     @window = UIWindow.alloc.initWithFrame(UIScreen.mainScreen.bounds)

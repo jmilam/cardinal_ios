@@ -11,7 +11,7 @@ class MainMenuController < UIViewController
 		self.navigationItem.rightBarButtonItem = UIBarButtonItem.alloc.initWithCustomView(button)
 		img = nil
 		button = nil
-		# self.navigationItem.rightBarButtonItem = UIBarButtonItem.alloc.initWithImage(UIImage.imageNamed('settings_image.png'), style: UIBarButtonItemStylePlain, target: self, action: nil)
+
 		@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
 		@to_locations = ["","2110", "2400", "SAMPLE"]
 
@@ -40,17 +40,38 @@ class MainMenuController < UIViewController
 
 	def submit
 		@builder.clearAlertArea
-
-		APIRequest.new.get(@header.text, {item_num: @item_num.text, qty_to_move: @qty.text, from_loc: @from_loc.text, to_loc: @to_loc.text, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: @from_site.text, to_site: @to_site.text, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
+		APIRequest.new.get('tag_details', {tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 			if result["success"] == true 
-				@builder.updateAlertArea
-			else
-				@builder.updateAlertArea("failure", result["result"])
+				result = result["result"]
+				item = validate_text_presence(@item_num.text, result["ttitem"])
+				from_loc = validate_text_presence(@from_loc.text, result["ttloc"])
+				to_site = validate_text_presence(@to_site.text, result["ttsite"])
+				from_site = validate_text_presence(@from_site.text, result["ttsite"])
+				qty = validate_text_presence(@qty.text, result["ttqtyloc"])
+
+				APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: @to_loc.text, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
+					if result["success"] == true 
+						@builder.updateAlertArea
+					else
+						@builder.updateAlertArea("failure", result["result"])
+					end
+				end		
 			end
-		end		
+		end
+	end
+
+	def new_pallet
+		APIRequest.new.get('plo_next_pallet', {}) do |result|
+			@tag_num.text = result["result"]
+			@item_num.becomeFirstResponder
+		end
 	end
 
 	def settings
+	end
+
+	def validate_text_presence(text, returned_value)
+		text.empty? ? returned_value : text
 	end
 
 	#Delegate Methods
@@ -84,6 +105,8 @@ class MainMenuController < UIViewController
 		self.view.subviews.each do |subview|
 			subview.removeFromSuperview
 		end
+		@builder.clearAlertArea
+		@builder.clearTextFields
 
 		case @header.text.match(/^\w+\s+/)[0].strip
 		when "PDL"
