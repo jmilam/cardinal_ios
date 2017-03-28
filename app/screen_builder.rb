@@ -17,8 +17,10 @@ class ScreenBuilder < UIViewController
 	attr_reader :skid_num
 	attr_reader :lot
 	attr_reader :remarks
+	attr_accessor :new_pallet
 
 	def initWithView(view)
+		@new_pallet = false
 		createTable(view)
 		@nav_bar_height = view.navigationController.navigationBar.frame.origin.y + view.navigationController.navigationBar.frame.size.height
 		self
@@ -71,6 +73,7 @@ class ScreenBuilder < UIViewController
 		@item_num = createTextField
 		@item_num.userInteractionEnabled = false
 		addSharedAttributes(@item_num, 'Item Number - Informational Only')
+		@item_num.delegate = self
 
 		@tag_num = createTextField
 		addSharedAttributes(@tag_num, 'Tag Number')
@@ -83,7 +86,7 @@ class ScreenBuilder < UIViewController
 		addSharedAttributes(@from_loc, 'From Location')
 
 		@to_loc = createTextField
-		addSharedAttributes(@to_loc, 'To Location', true)
+		addSharedAttributes(@to_loc, 'To Location')
 
 		@from_site = createTextField
 		addSharedAttributes(@from_site, 'From Site')
@@ -112,7 +115,8 @@ class ScreenBuilder < UIViewController
 		@cell_bg.backgroundColor = UIColor.colorWithRed(0.48, green: 0.70, blue: 0.56, alpha: 0.8)
 
 		@submit = UIButton.buttonWithType(UIButtonTypeRoundedRect)
-		@submit.backgroundColor = UIColor.blueColor
+		@submit.backgroundColor = UIColor.colorWithRed(0.63, green: 0.52, blue: 0.31, alpha: 1.0)
+		@submit.tintColor = UIColor.whiteColor
 		@submit.setTitle('Submit', forState:UIControlStateNormal)
 		@submit.setTitle('Submiting...', forState:UIControlStateSelected)
 		@submit.addTarget(viewController, action: 'submit', forControlEvents:UIControlEventTouchUpInside)
@@ -172,6 +176,9 @@ class ScreenBuilder < UIViewController
 
 	def buildPLO(viewController)
 		@tag_num.becomeFirstResponder
+		@qty.placeholder = "Qty"
+		@from_site.text = UIApplication.sharedApplication.delegate.site
+		@to_site.text = UIApplication.sharedApplication.delegate.site
 		enableItemNumField
 
 		Motion::Layout.new do |layout|
@@ -286,6 +293,7 @@ class ScreenBuilder < UIViewController
 		@lot.text = ""
 		@current_qty.text = ""
 		@current_item.text = ""
+		@new_pallet = false
 	end
 	
 	#These functions update the bottom left of the main screen for alert notifications
@@ -295,7 +303,7 @@ class ScreenBuilder < UIViewController
 		@text_area.numberOfLines = 14
 		@text_area.adjustsFontSizeToFitWidth = true
 		@text_area.textAlignment = UITextAlignmentCenter
-		@text_area.textColor = UIColor.colorWithRed(0.05, green: 0.35, blue: 0.81, alpha: 0.8)
+		@text_area.textColor = @text_area.color = UIColor.colorWithRed(0.0, green: 0.13, blue: 0.36, alpha: 0.9)
 
 		Motion::Layout.new do |layout|
 			layout.view view
@@ -312,6 +320,8 @@ class ScreenBuilder < UIViewController
 		else
 			@text_area.text = "Transaction Failed: \n #{message}"
 		end
+
+		NSTimer.scheduledTimerWithTimeInterval(5.0, target:self, selector: "clearAlertArea", userInfo: nil, repeats: false)
 	end
 
 	def clearAlertArea
@@ -347,25 +357,43 @@ class ScreenBuilder < UIViewController
 		@picker.dataSource = view
 	end
 
+	
+
 	def textFieldDidBeginEditing(textField)
 	end
 	
 	def textFieldDidEndEditing(textfield)
+		textfield.superview.nextResponder.showSpinner
 		if textfield === @tag_num
-			unless @tag_num.text.empty?
+			unless @tag_num.text.empty? || @new_pallet
 				APIRequest.new.get('tag_details', {tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 					if result["success"] == true 
-						#@builder.updateAlertArea
+						if @header.text.match(/PLO/).nil?
+							@from_loc.text = result["result"]["ttloc"]
+						else
+							@to_loc.text = result["result"]["ttloc"]
+						end
+
 						@item_num.text = result["result"]["ttitem"]
-						@from_loc.text = result["result"]["ttloc"]
 						@from_site.text = result["result"]["ttsite"]
 						@to_site.text = result["result"]["ttsite"]
 						@current_qty.text = "Current tag qty: #{result["result"]["ttqtyloc"].to_i}"
 						@current_item.text = "#{result["result"]["ttdesc1"]}"
 					else
-						self.updateAlertArea("failure", result["result"])
+						self.updateAlertArea("failure", result["result"]["ttitem"])
 					end
+					textfield.superview.nextResponder.stopSpinner
 				end	
+			end
+		elsif textfield === @item_num
+			APIRequest.new.get('item_location', {item_num: @item_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+				default_location = result["Location"]
+				if @header.text.match(/PLO/).nil?
+					@from_loc.text = default_location
+				else
+					@to_loc.text.empty? ? @to_loc.text = default_location : @from_loc.text = default_location
+				end
+				textfield.superview.nextResponder.stopSpinner
 			end
 		end
 	end

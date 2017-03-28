@@ -40,29 +40,37 @@ class MainMenuController < UIViewController
 
 	def submit
 		@builder.clearAlertArea
+		showSpinner
 		APIRequest.new.get('tag_details', {tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 			if result["success"] == true 
 				result = result["result"]
+
 				item = validate_text_presence(@item_num.text, result["ttitem"])
 				from_loc = validate_text_presence(@from_loc.text, result["ttloc"])
+				to_loc = validate_text_presence(@to_loc.text, result["ttloc"])
 				to_site = validate_text_presence(@to_site.text, result["ttsite"])
 				from_site = validate_text_presence(@from_site.text, result["ttsite"])
 				qty = validate_text_presence(@qty.text, result["ttqtyloc"])
 
-				APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: @to_loc.text, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
+				APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
 					if result["success"] == true 
 						@builder.updateAlertArea
 					else
 						@builder.updateAlertArea("failure", result["result"])
 					end
-				end		
+					stopSpinner
+				end	
+			else
+				stopSpinner	
 			end
+			
 		end
 	end
 
 	def new_pallet
 		APIRequest.new.get('plo_next_pallet', {}) do |result|
 			@tag_num.text = result["result"]
+			@builder.new_pallet = true
 			@item_num.becomeFirstResponder
 		end
 	end
@@ -72,6 +80,21 @@ class MainMenuController < UIViewController
 
 	def validate_text_presence(text, returned_value)
 		text.empty? ? returned_value : text
+	end
+
+	def showSpinner
+		@spinner = UIActivityIndicatorView.alloc.initWithActivityIndicatorStyle(UIActivityIndicatorViewStyleWhiteLarge)
+		@spinner.color = UIColor.blueColor
+		@spinner.frame = [[self.view.frame.size.width / 2,self.view.frame.size.height / 3],[100,100]]
+		# @spinner = UIActivityIndicatorView.alloc.initWithFrame([[self.view.frame.size.width / 2,self.view.frame.size.height / 3],[100,100]])
+		@spinner.color = UIColor.blueColor
+		@spinner.startAnimating
+		self.view.addSubview(@spinner)
+	end
+
+	def stopSpinner
+		@spinner.stopAnimating
+		@spinner.removeFromSuperview
 	end
 
 	#Delegate Methods
