@@ -42,15 +42,15 @@ class MainMenuController < UIViewController
 		@builder.clearAlertArea
 		showSpinner
 		APIRequest.new.get('tag_details', {tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+			item = validate_text_presence(@item_num.text, result["ttitem"])
+			from_loc = validate_text_presence(@from_loc.text, result["ttloc"])
+			to_loc = validate_text_presence(@to_loc.text, result["ttloc"])
+			to_site = validate_text_presence(@to_site.text, result["ttsite"])
+			from_site = validate_text_presence(@from_site.text, result["ttsite"])
+			qty = validate_text_presence(@qty.text, result["ttqtyloc"])
+
 			if result["success"] == true 
 				result = result["result"]
-
-				item = validate_text_presence(@item_num.text, result["ttitem"])
-				from_loc = validate_text_presence(@from_loc.text, result["ttloc"])
-				to_loc = validate_text_presence(@to_loc.text, result["ttloc"])
-				to_site = validate_text_presence(@to_site.text, result["ttsite"])
-				from_site = validate_text_presence(@from_site.text, result["ttsite"])
-				qty = validate_text_presence(@qty.text, result["ttqtyloc"])
 
 				APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
 					if result["success"] == true 
@@ -61,7 +61,19 @@ class MainMenuController < UIViewController
 					stopSpinner
 				end	
 			else
-				stopSpinner	
+
+				if @header.text.downcase.match(/plo/).nil?
+					stopSpinner
+				else
+					APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
+						if result["success"] == true 
+							@builder.updateAlertArea
+						else
+							@builder.updateAlertArea("failure", result["result"])
+						end
+						stopSpinner
+					end	
+				end
 			end
 			
 		end
@@ -72,6 +84,7 @@ class MainMenuController < UIViewController
 			@tag_num.text = result["result"]
 			@builder.new_pallet = true
 			@item_num.becomeFirstResponder
+			stopSpinner
 		end
 	end
 
@@ -145,7 +158,7 @@ class MainMenuController < UIViewController
 		when "Skid"#"Skid Label"
 			@builder.buildSkidLabel(self)
 		else
-			@builder.buildPUL(self)
+			@builder.buildGenericView(self)
 		end
 	end
 

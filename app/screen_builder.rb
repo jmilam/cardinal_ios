@@ -234,6 +234,19 @@ class ScreenBuilder < UIViewController
 		viewController
 	end
 
+	def buildGenericView(viewController)
+		Motion::Layout.new do |layout|
+			layout.view viewController.view
+			layout.subviews "table" => @table, "header" => @header, "item_num" => @item_num, "current_qty" => @current_qty, "tag_num" => @tag_num, "qty" => @qty,"current_item" => @current_item, "current_qty" => @current_qty, "from_loc" => @from_loc, "to_loc" => @to_loc, "submit" => @submit, "alert_area" => @alert_area
+			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2) - 20
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-(>=10)-|"
+			sharedLayoutParameters(layout)
+		end
+
+		viewController
+	end
+
+
 	def buildSkidLabel(viewController)
 		@skid_num.becomeFirstResponder
 		Motion::Layout.new do |layout|
@@ -363,15 +376,23 @@ class ScreenBuilder < UIViewController
 	end
 	
 	def textFieldDidEndEditing(textfield)
-		textfield.superview.nextResponder.showSpinner
+		
 		if textfield === @tag_num
 			unless @tag_num.text.empty? || @new_pallet
+				textfield.superview.nextResponder.showSpinner
 				APIRequest.new.get('tag_details', {tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 					if result["success"] == true 
 						if @header.text.match(/PLO/).nil?
 							@from_loc.text = result["result"]["ttloc"]
 						else
 							@to_loc.text = result["result"]["ttloc"]
+						end
+
+						if @header.text.match(/PUL/) != nil || @header.text.match(/PDL/) != nil
+							APIRequest.new.get('item_location', {item_num: result["result"]["ttitem"], user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+								default_location = result["Location"]
+								@to_loc.text = default_location
+							end
 						end
 
 						@item_num.text = result["result"]["ttitem"]
@@ -386,10 +407,11 @@ class ScreenBuilder < UIViewController
 				end	
 			end
 		elsif textfield === @item_num
+			textfield.superview.nextResponder.showSpinner
 			APIRequest.new.get('item_location', {item_num: @item_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 				default_location = result["Location"]
 				if @header.text.match(/PLO/).nil?
-					@from_loc.text = default_location
+					@to_loc.text = default_location
 				else
 					@to_loc.text.empty? ? @to_loc.text = default_location : @from_loc.text = default_location
 				end
