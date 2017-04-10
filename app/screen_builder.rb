@@ -18,10 +18,12 @@ class ScreenBuilder < UIViewController
 	attr_reader :lot
 	attr_reader :remarks
 	attr_accessor :new_pallet
+	attr_reader :po_number
+	attr_reader :po_items
 
 	def initWithView(view)
 		@new_pallet = false
-		createTable(view)
+		@table = createTable(view)
 		@nav_bar_height = view.navigationController.navigationBar.frame.origin.y + view.navigationController.navigationBar.frame.size.height
 		self
 	end
@@ -52,12 +54,14 @@ class ScreenBuilder < UIViewController
 			layout.subviews "username" => @username, "password" => @password, "site_num" => @site_num, "printer" => @printer, "login" => @login
 			layout.metrics "margin" => 10, "height" => 50
 			layout.vertical "|-75-[username(==height)]-margin-[password(==height)]-margin-[site_num(==height)]-margin-[printer(==height)]-margin-[login(==height)]-(>=15)-|"
-			layout.horizontal "|-10-[username]-10-|"
-			layout.horizontal "|-10-[password]-10-|"
-			layout.horizontal "|-10-[site_num]-10-|"
-			layout.horizontal "|-10-[printer]-10-|"
+			layout.horizontal "|-(>=100)-[username(==300)]-(>=100)-|"
+			layout.horizontal "|-(>=100)-[password(==300)]-(>=100)-|"
+			layout.horizontal "|-(>=100)-[site_num(==300)]-(>=100)-|"
+			layout.horizontal "|-(>=100)-[printer(==300)]-(>=100)-|"
 			layout.horizontal "|-10-[login]-10-|"
 		end
+
+		
 	end
 
 	def buildMainMenu(viewController)
@@ -76,7 +80,7 @@ class ScreenBuilder < UIViewController
 		@item_num.delegate = self
 
 		@tag_num = createTextField
-		addSharedAttributes(@tag_num, 'Tag Number')
+		addSharedAttributes(@tag_num, 'Enter Existing Tag Number')
 		@tag_num.delegate = self
 
 		@qty = createTextField
@@ -99,9 +103,13 @@ class ScreenBuilder < UIViewController
 
 		@remarks = createTextField
 		addSharedAttributes(@remarks, 'Enter PCT Remarks...')
+		@remarks.delegate = self
 
 		@skid_num = createTextField
 		addSharedAttributes(@skid_num, 'Skid Number')
+
+		@po_number = createTextField
+		addSharedAttributes(@po_number, "Enter PO Number...")
 
 		@current_qty = createLabel
 		@current_qty.textAlignment = UITextAlignmentCenter
@@ -121,8 +129,14 @@ class ScreenBuilder < UIViewController
 		@submit.setTitle('Submiting...', forState:UIControlStateSelected)
 		@submit.addTarget(viewController, action: 'submit', forControlEvents:UIControlEventTouchUpInside)
 
+		@next = UIButton.buttonWithType(UIButtonTypeRoundedRect)
+		@next.backgroundColor = UIColor.colorWithRed(0.63, green: 0.52, blue: 0.31, alpha: 1.0)
+		@next.tintColor = UIColor.whiteColor
+		@next.setTitle('Next', forState:UIControlStateNormal)
+		@next.addTarget(viewController, action: 'next', forControlEvents:UIControlEventTouchUpInside)
+
 		@new_button = UIButton.buttonWithType(UIButtonTypeRoundedRect)
-		@new_button.setTitle('New Pallet', forState: UIControlStateNormal)
+		@new_button.setTitle('New Tag', forState: UIControlStateNormal)
 		@new_button.addTarget(viewController, action: 'new_pallet', forControlEvents:UIControlEventTouchUpInside)
 
 		Motion::Layout.new do |layout|
@@ -135,20 +149,53 @@ class ScreenBuilder < UIViewController
 		viewController
 	end
 
-	def buildPCT(viewController)
+	def buildStartingPoint(viewController)
+		@tag_num.userInteractionEnabled = true
+		@tag_num.becomeFirstResponder
+
+		if @header.text.downcase.match(/plo/).nil?
+			Motion::Layout.new do |layout|
+				layout.view viewController.view
+				layout.subviews "table" => @table, "header" => @header, "tag_num" => @tag_num, "next" => @next, "alert_area" => @alert_area
+				layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410
+				layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
+				layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)]-margin-[next(==height)]-(>=10)-|"
+				layout.horizontal "|-0-[alert_area(==400)]-0-|"
+				layout.horizontal "|-0-[table(==400)]-[header]-10-|"
+				layout.horizontal "|-left_margin-[tag_num]-10-|"
+				layout.horizontal "|-left_margin-[next]-10-|"
+			end
+		else
+			Motion::Layout.new do |layout|
+				layout.view viewController.view
+				layout.subviews "table" => @table, "header" => @header, "tag_num" => @tag_num, "new_button" => @new_button, "next" => @next, "alert_area" => @alert_area
+				layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2) - 20
+				layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
+				layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)][new_button(==height)]-margin-[next(==height)]-(>=10)-|"
+				layout.horizontal "|-0-[alert_area(==400)]-0-|"
+				layout.horizontal "|-0-[table(==400)]-[header]-10-|"
+				layout.horizontal "|-left_margin-[header]-10-|"
+				layout.horizontal "|-left_margin-[tag_num(==half_width)][new_button(==half_width)]-10-|"
+				layout.horizontal "|-left_margin-[next]-10-|"
+
+			end
+		end
+	end
+
+	def buildPCT(viewController, current_text)
+		@tag_num.text = current_text
 		@tag_num.becomeFirstResponder
 		disableItemNumField
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
-			layout.subviews "table" => @table, "header" => @header, "tag_num" => @tag_num, "qty" => @qty, "current_qty" => @current_qty, "current_item" => @current_item, "submit" => @submit, "alert_area" => @alert_area
-			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2) - 20
+			layout.subviews "table" => @table, "header" => @header, "item_num" => @item_num, "tag_num" => @tag_num, "qty" => @qty, "current_qty" => @current_qty, "current_item" => @current_item, "submit" => @submit, "alert_area" => @alert_area
+			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2) - 20, "left_padding" => (((viewController.view.frame.size.width - 410) / 2)) + 410
+			layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[tag_num(==height)][item_num(==height)]-margin-[qty(==height)][current_item(==height)]-margin-[current_qty(==height)]-margin-[submit(==height)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[tag_num(==half_width)]-[item_num(==half_width)]-10-|"
+			layout.horizontal "|-left_margin-[qty(==half_width)]-[current_item(==half_width)]-10-|"
+			layout.horizontal "|-left_padding-[current_qty(==half_width)]-10-|"
 
-			layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[tag_num(==height)][qty(==height)]-margin-[current_item(==height)][current_qty(==height)]-margin-[submit(==height)]-(>=10)-|"
-
-			
-			layout.horizontal "|-left_margin-[tag_num(==half_width)]-[qty(==half_width)]-10-|"
-			layout.horizontal "|-left_margin-[current_item(==half_width)]-[current_qty(==half_width)]-10-|"
 			sharedLayoutParameters(layout, {left_margin: 410})
 			
 		end
@@ -156,29 +203,31 @@ class ScreenBuilder < UIViewController
 		viewController
 	end
 
-	def buildPDL(viewController)
+	def buildPDL(viewController, current_text)
 		@tag_num.becomeFirstResponder
+		@from_loc.userInteractionEnabled = false
 		disableItemNumField
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
 			layout.subviews "table" => @table, "header" => @header, "item_num" => @item_num, "tag_num" => @tag_num, "current_qty" => @current_qty, "current_item" => @current_item, "from_loc" => @from_loc, "to_loc" => @to_loc, "submit" => @submit, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2) - 20
-			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)][item_num(==height)]-margin-[from_loc(==height)][to_loc(==height)]-margin-[current_item(==height)][current_qty(==height)]-margin-[submit(==height)]-(>=10)-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)][item_num(==height)]-margin-[from_loc(==height)][current_item(==height)]-margin-[to_loc(==height)][current_qty(==height)]-margin-[submit(==height)]-(>=10)-|"
 			layout.horizontal "|-left_margin-[tag_num(==half_width)]-[item_num(==half_width)]-10-|"
-			layout.horizontal "|-left_margin-[from_loc(==half_width)]-[to_loc(==half_width)]-10-|"
-			layout.horizontal "|-left_margin-[current_item(==half_width)]-[current_qty(==half_width)]-10-|"
+			layout.horizontal "|-left_margin-[from_loc(==half_width)]-[current_item(==half_width)]-10-|"
+			layout.horizontal "|-left_margin-[to_loc(==half_width)]-[current_qty(==half_width)]-10-|"
 			sharedLayoutParameters(layout, {left_margin: 410})
 		end
 
 		viewController
 	end
 
-	def buildPLO(viewController)
+	def buildPLO(viewController, current_text)
 		@tag_num.becomeFirstResponder
 		@qty.placeholder = "Qty"
 		@from_site.text = UIApplication.sharedApplication.delegate.site
 		@to_site.text = UIApplication.sharedApplication.delegate.site
+		@to_loc.userInteractionEnabled = false
 		enableItemNumField
 
 		Motion::Layout.new do |layout|
@@ -197,17 +246,19 @@ class ScreenBuilder < UIViewController
 		viewController
 	end
 
-	def buildPMV(viewController)
+	def buildPMV(viewController, current_text)
 		@tag_num.becomeFirstResponder
+		#@from_loc.userInteractionEnabled = false
 		disableItemNumField
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
-			layout.subviews "table" => @table, "header" => @header, "tag_num" => @tag_num, "to_loc" => @to_loc, "current_qty" => @current_qty, "current_item" => @current_item, "submit" => @submit, "alert_area" => @alert_area
+			layout.subviews "table" => @table, "header" => @header, "item_num" => @item_num, "tag_num" => @tag_num, "to_loc" => @to_loc, "from_loc" => @from_loc, "current_qty" => @current_qty, "current_item" => @current_item, "submit" => @submit, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2) - 20
-			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)][to_loc(==height)]-margin-[current_item(==height)][current_qty(==height)]-margin-[submit(==height)]-(>=10)-|"
-			layout.horizontal "|-left_margin-[tag_num(==half_width)]-[to_loc(==half_width)]-10-|"
-			layout.horizontal "|-left_margin-[current_item(==half_width)]-[current_qty(==half_width)]-10-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)][current_item(==height)]-margin-[to_loc(==height)][item_num(==height)]-margin-[from_loc(==height)][current_qty(==height)]-margin-[submit(==height)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[tag_num(==half_width)]-[current_item(==half_width)]-10-|"
+			layout.horizontal "|-left_margin-[to_loc(==half_width)]-[item_num(==half_width)]-10-|"
+			layout.horizontal "|-left_margin-[from_loc(==half_width)]-[current_qty(==half_width)]-10-|"
 			sharedLayoutParameters(layout, {left_margin: 410})
 			
 		end
@@ -215,7 +266,7 @@ class ScreenBuilder < UIViewController
 		viewController
 	end
 
-	def buildPUL(viewController)
+	def buildPUL(viewController, current_text)
 		@tag_num.becomeFirstResponder
 		disableItemNumField
 
@@ -234,7 +285,69 @@ class ScreenBuilder < UIViewController
 		viewController
 	end
 
-	def buildGenericView(viewController)
+	def buildTPT(viewController, current_text)
+		@tag_num.becomeFirstResponder
+
+		Motion::Layout.new do |layout|
+			layout.view viewController.view
+			layout.subviews "table" => @table, "header" => @header, "tag_num" => @tag_num, "submit" => @submit, "alert_area" => @alert_area
+			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[tag_num(==height)]-margin-[submit(==height)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[tag_num]-10-|"
+			sharedLayoutParameters(layout, {left_margin: 410})
+		end
+	end
+
+	def buildGLB(viewController, current_text)
+		@remarks.becomeFirstResponder
+
+		Motion::Layout.new do |layout|
+			layout.view viewController.view
+			layout.subviews "table" => @table, "header" => @header, "remarks" => @remarks, "submit" => @submit, "alert_area" => @alert_area
+			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[remarks(==height)]-margin-[submit(==height)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[remarks]-10-|"
+			sharedLayoutParameters(layout, {left_margin: 410})
+		end
+	end
+
+	def buildPOR1(viewController, current_text)
+		@po_number.becomeFirstResponder
+
+		Motion::Layout.new do |layout|
+			layout.view viewController.view
+			layout.subviews "table" => @table, "header" => @header, "po_number" => @po_number, "next" => @next, "alert_area" => @alert_area
+			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410
+			layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[po_number(==height)]-margin-[next(==height)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[po_number]-10-|"
+			layout.horizontal "|-left_margin-[next]-10-|"
+			layout.horizontal "|-0-[table(==400)]-[header]-10-|"
+			layout.horizontal "|-left_margin-[header]-10-|"
+			#sharedLayoutParameters(layout, {left_margin: 410})
+		end
+	end
+
+	def buildPOR2(viewController, current_text)
+		@po_number.text = "POR2"
+		@po_number.becomeFirstResponder
+		@po_items = createTable(viewController)
+
+		Motion::Layout.new do |layout|
+			layout.view viewController.view
+			layout.subviews "table" => @table, "header" => @header, "po_items" => @po_items, "submit" => @submit, "alert_area" => @alert_area
+			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410
+			layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[po_items(==200)]-margin-[submit(==height)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[po_items]-10-|"
+			layout.horizontal "|-left_margin-[submit]-10-|"
+			layout.horizontal "|-0-[table(==400)]-[header]-10-|"
+			layout.horizontal "|-left_margin-[header]-10-|"
+			#sharedLayoutParameters(layout, {left_margin: 410})
+		end
+	end
+
+	def buildGenericView(viewController, current_text)
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
 			layout.subviews "table" => @table, "header" => @header, "item_num" => @item_num, "current_qty" => @current_qty, "tag_num" => @tag_num, "qty" => @qty,"current_item" => @current_item, "current_qty" => @current_qty, "from_loc" => @from_loc, "to_loc" => @to_loc, "submit" => @submit, "alert_area" => @alert_area
@@ -246,21 +359,21 @@ class ScreenBuilder < UIViewController
 		viewController
 	end
 
-
-	def buildSkidLabel(viewController)
+	def buildSkidLabel(viewController, current_text)
 		@skid_num.becomeFirstResponder
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
 			layout.subviews "table" => @table, "header" => @header, "skid_num" => @skid_num, "submit" => @submit, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2) - 20
 			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[skid_num(==height)]-margin-[submit(==height)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[skid_num]-10-|"
 			layout.horizontal "|-left_margin-[submit]-10-|"
 			sharedLayoutParameters(layout)
 		end
 	end
 
 	def sharedLayoutParameters(layout, *params)
-		layout.vertical "|-0-[table(>=500)]-[alert_area]-0-|"
+		layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
 		layout.horizontal "|-0-[alert_area(==400)]-0-|"
 		layout.horizontal "|-0-[table(==400)]-[header]-10-|"
 		unless params.empty?
@@ -270,14 +383,18 @@ class ScreenBuilder < UIViewController
 	end
 
 	def createTable(view)
-		@table = UITableView.new
-		@table.dataSource = view
-		@table.delegate = view
+		table = UITableView.new
+		table.dataSource = view
+		table.delegate = view
+		table
 	end
 
 	def createTextField
 		textField = UITextField.new
 		textField.clearButtonMode = UITextFieldViewModeWhileEditing
+    textField.layer.masksToBounds= true
+    textField.layer.borderColor= UIColor.colorWithRed(0.29, green: 0.58, blue: 0.53, alpha: 0.3).CGColor
+    textField.layer.borderWidth= 1.0
 		textField
 	end
 
@@ -299,13 +416,14 @@ class ScreenBuilder < UIViewController
 		@tag_num.text = ""
 		@to_loc.text = ""
 		@qty.text = ""
-		@from_site.text = ""
-		@to_site.text = ""
+		@from_site.text = UIApplication.sharedApplication.delegate.site
+		@to_site.text = UIApplication.sharedApplication.delegate.site
 		@skid_num.text = ""
 		@remarks.text = ""
 		@lot.text = ""
 		@current_qty.text = ""
 		@current_item.text = ""
+		@po_number.text = ""
 		@new_pallet = false
 	end
 	
@@ -330,6 +448,7 @@ class ScreenBuilder < UIViewController
 	def updateAlertArea(update_type="success", message=nil)
 		if update_type == "success"
 			@text_area.text = "Transaction Successful: \n #{@header.text} \n Item Num: \t #{@item_num.text}\nQty: \t #{@qty.text}\nFrom Loc: \t #{@from_loc.text}\nTo Loc: \t #{@to_loc.text}"
+			clearTextFields
 		else
 			@text_area.text = "Transaction Failed: \n #{message}"
 		end
@@ -370,7 +489,16 @@ class ScreenBuilder < UIViewController
 		@picker.dataSource = view
 	end
 
-	
+
+	def textField(textField, shouldChangeCharactersInRange: range, replacementString: replacement)
+		if textField == @remarks
+			unless textField.text.length < 13
+				App.alert("Cannot use more then 20 characters.")
+				textField.text = textField.text[0..13]
+			end
+		end
+		textField
+	end
 
 	def textFieldDidBeginEditing(textField)
 	end
@@ -378,7 +506,9 @@ class ScreenBuilder < UIViewController
 	def textFieldDidEndEditing(textfield)
 		
 		if textfield === @tag_num
-			unless @tag_num.text.empty? || @new_pallet
+			if @tag_num.text.empty? || @new_pallet
+				@to_loc.userInteractionEnabled = true
+			else
 				textfield.superview.nextResponder.showSpinner
 				APIRequest.new.get('tag_details', {tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 					if result["success"] == true 
@@ -417,7 +547,7 @@ class ScreenBuilder < UIViewController
 				end
 				textfield.superview.nextResponder.stopSpinner
 			end
-		end
+		end #unless @item_num.text.empty?
+		textfield
 	end
-
 end

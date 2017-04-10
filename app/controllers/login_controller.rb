@@ -3,6 +3,7 @@ class LoginController < UIViewController
 	def viewDidLoad
 		self.title = 'Login'
 		self.view.backgroundColor = UIColor.whiteColor
+		self.automaticallyAdjustsScrollViewInsets = false
 		@picker_data = ["","2000", "3000", "4300"]
 		@printers = ["","Biz363", 'It-Printer', '3600it']
 
