@@ -37,6 +37,7 @@ class MainMenuController < UIViewController
 		@remarks = @builder.remarks
 		@lot = @builder.lot
 		@po_number = @builder.po_number
+		@label_count = @builder.label_count
 		@po_items = nil
 		super
 
@@ -52,48 +53,86 @@ class MainMenuController < UIViewController
 				stopSpinner
 			end
 		else
-			APIRequest.new.get('tag_details', {tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
-				item = validate_text_presence(@item_num.text, result["result"]["ttitem"])
-				from_loc = validate_text_presence(@from_loc.text, result["result"]["ttloc"])
-				to_loc = validate_text_presence(@to_loc.text, result["result"]["ttloc"])
-				to_site = validate_text_presence(@to_site.text, result["result"]["ttsite"])
-				from_site = validate_text_presence(@from_site.text, result["result"]["ttsite"])
-				qty = validate_text_presence(@qty.text, result["result"]["ttqtyloc"])
-				if result["success"] == true 
-					result = result["result"]
-
-					APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
-						if result["success"] == true 
-							@builder.updateAlertArea
-							unless @header.text.downcase.match(/pct/).nil? && @header.text.downcase.match(/plo/).nil?
-								alert = UIAlertController.alertControllerWithTitle("Would you like to print a new label?", message:  "",preferredStyle: UIAlertControllerStyleAlert)
-								cancelAction = UIAlertAction.actionWithTitle("No Thanks", style: UIAlertActionStyleDestructive, handler: lambda { |result| })
-								printAction = UIAlertAction.actionWithTitle("Yes, Please", style: UIAlertActionStyleDefault, handler: lambda {|reuslt| APIRequest.new.get("print_label", {tag: @tag_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, type: "print_label"}) {|result|}})
-								alert.addAction(cancelAction)
-								alert.addAction(printAction)
-								self.presentViewController(alert, animated: true, completion: nil)
-							end
-						else
-							@builder.updateAlertArea("failure", result["result"])
-						end
-						stopSpinner
-					end	
-				else
-					if @header.text.downcase.match(/plo/).nil?
+			if @tag_num.text.empty?
+				if @header.text.downcase.match(/por/) != nil
+					@data = nil
+					self.view.subviews.each {|subview| subview.class == UIScrollView ? @data = subview : next}
+					if @data.nil?
 						stopSpinner
 					else
+						begin
+							tag_nums = [] 
+							@data.subviews.each do |subview|
+								if subview.class == UIView
+									line = subview.subviews[2].text.match(/\d+/)
+									line = line[0] unless line.nil?
+									APIRequest.new.get(@header.text, {type: "por", po_num: @po_number.text, location: subview.subviews[4].text, qty: subview.subviews[1].text, line: line, label_count: "#{@label_count.text}", user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase}) do |result|
+										tag_nums << result["Tag"]
+										stopSpinner
+									end if subview.subviews[1].text.to_i > 0
+								else
+									stopSpinner
+								end
+
+							end
+
+							tag_nums.each do |tag_num|
+								unless tag_num.empty?
+									APIRequest.new.get("print_label", {tag: tag_num, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, type: "print_label"}) do |result|
+									end
+								end
+							end
+						rescue => error
+							p error
+						end
+					end
+					@po_number.text = ""
+					clearSubViews
+					@builder.buildPOR1(self, nil)
+				end
+			else
+				APIRequest.new.get('tag_details', {tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+					item = validate_text_presence(@item_num.text, result["result"]["ttitem"])
+					from_loc = validate_text_presence(@from_loc.text, result["result"]["ttloc"])
+					to_loc = validate_text_presence(@to_loc.text, result["result"]["ttloc"])
+					to_site = validate_text_presence(@to_site.text, result["result"]["ttsite"])
+					from_site = validate_text_presence(@from_site.text, result["result"]["ttsite"])
+					qty = validate_text_presence(@qty.text, result["result"]["ttqtyloc"])
+					if result["success"] == true 
+						result = result["result"]
+	
 						APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
 							if result["success"] == true 
 								@builder.updateAlertArea
-								
+								unless @header.text.downcase.match(/pct/).nil? && @header.text.downcase.match(/plo/).nil?
+									alert = UIAlertController.alertControllerWithTitle("Would you like to print a new label?", message:  "",preferredStyle: UIAlertControllerStyleAlert)
+									cancelAction = UIAlertAction.actionWithTitle("No Thanks", style: UIAlertActionStyleDestructive, handler: lambda { |result| })
+									printAction = UIAlertAction.actionWithTitle("Yes, Please", style: UIAlertActionStyleDefault, handler: lambda {|reuslt| APIRequest.new.get("print_label", {tag: @tag_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, type: "print_label"}) {|result|}})
+									alert.addAction(cancelAction)
+									alert.addAction(printAction)
+									self.presentViewController(alert, animated: true, completion: nil)
+								end
 							else
 								@builder.updateAlertArea("failure", result["result"])
 							end
 							stopSpinner
 						end	
+					else
+						if @header.text.downcase.match(/plo/).nil?
+							stopSpinner
+						else
+							APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
+								if result["success"] == true 
+									@builder.updateAlertArea
+									
+								else
+									@builder.updateAlertArea("failure", result["result"])
+								end
+								stopSpinner
+							end	
+						end
 					end
 				end
-				
 			end
 		end
 	end
@@ -183,7 +222,7 @@ class MainMenuController < UIViewController
 		  if result["success"] 
 		  	@po_items = result["result"]["Lines"]
 		  	@po_items_count = result["result"]["Lines"].count
-		  	@builder.buildPOR2(self, nil)
+		  	@builder.buildPOR2(self, {po_items: @po_items, items_count: @po_items_count, locations: result["result"]["Locs"]})
 			else
 				@builder.buildPOR1(self, nil)
 				@builder.updateAlertArea("failure", result["result"])

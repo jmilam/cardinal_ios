@@ -20,6 +20,7 @@ class ScreenBuilder < UIViewController
 	attr_accessor :new_pallet
 	attr_reader :po_number
 	attr_reader :po_items
+	attr_reader :label_count
 
 	def initWithView(view)
 		@new_pallet = false
@@ -60,8 +61,6 @@ class ScreenBuilder < UIViewController
 			layout.horizontal "|-(>=100)-[printer(==300)]-(>=100)-|"
 			layout.horizontal "|-10-[login]-10-|"
 		end
-
-		
 	end
 
 	def buildMainMenu(viewController)
@@ -102,7 +101,7 @@ class ScreenBuilder < UIViewController
 		addSharedAttributes(@lot, 'Lot')
 
 		@remarks = createTextField
-		addSharedAttributes(@remarks, 'Enter PCT Remarks...')
+		addSharedAttributes(@remarks, 'Enter Label Wording...')
 		@remarks.delegate = self
 
 		@skid_num = createTextField
@@ -110,6 +109,9 @@ class ScreenBuilder < UIViewController
 
 		@po_number = createTextField
 		addSharedAttributes(@po_number, "Enter PO Number...")
+
+		@label_count = createTextField
+		addSharedAttributes(@label_count, "How many labels?")
 
 		@current_qty = createLabel
 		@current_qty.textAlignment = UITextAlignmentCenter
@@ -328,22 +330,69 @@ class ScreenBuilder < UIViewController
 		end
 	end
 
-	def buildPOR2(viewController, current_text)
-		@po_number.text = "POR2"
-		@po_number.becomeFirstResponder
-		@po_items = createTable(viewController)
+	def buildPOR2(viewController, data_hash)
+		#@po_number.text = "POR2"
+
+		@data_container = UIScrollView.new
+		breakline = UILabel.new
+		breakline.backgroundColor = UIColor.blackColor
+
+		@por_loc = ["INSPECT", "C-ROCK", "UPFLOOR"]
+		@locations = UIPickerView.new
+		@locations.frame = CGRectMake(20, 100, 260, 120)
+		@locations.delegate = self
+		@locations.dataSource = self
+
+		position = 0
+		data_hash[:po_items].each do |data|
+			new_view = UIView.new
+			new_view.frame = [[0,position],[600,100]]
+			label1 = UILabel.alloc.initWithFrame([[0,0],[200,30]])
+			label2 = createTextField
+			addSharedAttributes(label2, "Qty receiving?")
+			label2.frame = [[400,0],[200,30]]
+			label2.layer.borderWidth= 0.0
+			label3 = UILabel.alloc.initWithFrame([[0, 40], [200,20]])
+			label4 = UILabel.alloc.initWithFrame([[400,40],[200,30]])
+			label5 = createTextField
+			addSharedAttributes(label5, "Location..")
+			label5.frame = [[225,0], [150,30]]
+			label5.layer.borderWidth= 0.0
+			label5.inputView = @locations
+			#breakline.frame = [[0,80], [600,1]]
+
+			label1.text = data["ttitem"]
+			label3.text = "Line # " + data["ttline"].to_s
+			label4.text = data["ttqtyopen"].to_i.to_s + " To Be Received"
+			new_view.addSubview(label1)
+			new_view.addSubview(label2)
+			new_view.addSubview(label3)
+			new_view.addSubview(label4)
+			new_view.addSubview(label5)
+			#new_view.addSubview(breakline)
+			@data_container.addSubview(new_view)
+			position += 100
+			label1 = nil
+			label2 = nil
+			label3 = nil
+			label4 = nil
+			label5 = nil
+			new_view = nil
+		end
+
+		@data_container.contentSize = CGSizeMake(self.view.frame.size.width - 440, position)
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
-			layout.subviews "table" => @table, "header" => @header, "po_items" => @po_items, "submit" => @submit, "alert_area" => @alert_area
+			layout.subviews "table" => @table, "header" => @header,"data_container" => @data_container, "label_count" => @label_count, "submit" => @submit, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410
 			layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
-			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[po_items(==200)]-margin-[submit(==height)]-(>=10)-|"
-			layout.horizontal "|-left_margin-[po_items]-10-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[data_container(==200)]-margin-[label_count(==height)]-margin-[submit(==height)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[data_container]-10-|"
+			layout.horizontal "|-left_margin-[label_count]-10-|"
 			layout.horizontal "|-left_margin-[submit]-10-|"
 			layout.horizontal "|-0-[table(==400)]-[header]-10-|"
 			layout.horizontal "|-left_margin-[header]-10-|"
-			#sharedLayoutParameters(layout, {left_margin: 410})
 		end
 	end
 
@@ -425,6 +474,7 @@ class ScreenBuilder < UIViewController
 		@current_item.text = ""
 		@po_number.text = ""
 		@new_pallet = false
+		@data_container = nil
 	end
 	
 	#These functions update the bottom left of the main screen for alert notifications
@@ -549,5 +599,28 @@ class ScreenBuilder < UIViewController
 			end
 		end #unless @item_num.text.empty?
 		textfield
+	end
+
+	def pickerView(pickerView, numberOfRowsInComponent: componenent)
+		3
+	end
+
+	def pickerView(pickerView, titleForRow: row, forComponent: componenent)
+		@por_loc[row]
+	end
+
+	def numberOfComponentsInPickerView(pickerView)
+		1
+	end
+
+	def pickerView(pickerView, didSelectRow: row, inComponent: componenent)
+		@data_container.subviews.each do |subview|
+			subview.subviews.each do |subview|
+				if subview.isFirstResponder
+					subview.text = @por_loc[row] 
+					subview.resignFirstResponder
+				end
+			end if subview.class == UIView
+		end 
 	end
 end
