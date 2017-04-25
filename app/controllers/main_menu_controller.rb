@@ -4,12 +4,12 @@ class MainMenuController < UIViewController
 		self.title = 'Main Menu'
 		self.view.backgroundColor = UIColor.whiteColor
 		self.automaticallyAdjustsScrollViewInsets = false
-		# img = UIImage.imageNamed('settings_image.png')
-		# button = UIButton.buttonWithType(UIButtonTypeCustom)
-		# button.bounds = [[0,0],[img.size.width, img.size.height]]
-		# button.setImage(img, forState:UIControlStateNormal)
-		# button.addTarget(self, action: settings, forControlEvents: UIControlEventTouchUpInside)
-		# self.navigationItem.rightBarButtonItem = UIBarButtonItem.alloc.initWithCustomView(button)
+
+		search = UISearchBar.new
+		search.delegate = self
+		search.frame = [[self.view.frame.size.width - 250,-10],[200,50]]
+		self.navigationController.navigationBar.addSubview(search)
+
 		img = nil
 		button = nil
 		@po_items_count = 0
@@ -83,7 +83,7 @@ class MainMenuController < UIViewController
 								end
 							end
 						rescue => error
-							p error
+							error
 						end
 					end
 					@po_number.text = ""
@@ -104,6 +104,7 @@ class MainMenuController < UIViewController
 						APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
 							if result["success"] == true 
 								@builder.updateAlertArea
+								functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
 								unless @header.text.downcase.match(/pct/).nil? && @header.text.downcase.match(/plo/).nil?
 									alert = UIAlertController.alertControllerWithTitle("Would you like to print a new label?", message:  "",preferredStyle: UIAlertControllerStyleAlert)
 									cancelAction = UIAlertAction.actionWithTitle("No Thanks", style: UIAlertActionStyleDestructive, handler: lambda { |result| })
@@ -146,6 +147,7 @@ class MainMenuController < UIViewController
 			clearSubViews
 
 			@tag_num.userInteractionEnabled = false
+
 			case @header.text.match(/^\w+\s+/)[0].strip
 			when "PDL"
 				@builder.buildPDL(self, current_text)
@@ -169,6 +171,23 @@ class MainMenuController < UIViewController
 				@builder.buildGenericView(self, current_text)
 			end
 		})
+	end
+
+	def functionStartingPoint(header)
+		clearSubViews
+		case header
+
+		when "GLB"
+			@builder.buildGLB(self, nil)
+		when "TPT"
+			@builder.buildTPT(self, nil)
+		when "Skid"
+			@builder.buildSkidLabel(self, nil)
+		when "POR"
+			@builder.buildPOR1(self, nil)
+	  else
+			@builder.buildStartingPoint(self)
+		end
 	end
 
 	def new_pallet
@@ -229,6 +248,11 @@ class MainMenuController < UIViewController
 			end
 		end
 	end
+
+	def closePopup
+		@popup.removeFromSuperview
+		@popup = nil
+	end
 	
 	#Delegate Methods
 	def numberOfSectionsInTableView(tableView)
@@ -284,19 +308,7 @@ class MainMenuController < UIViewController
 			@builder.clearAlertArea
 			@builder.clearTextFields
 
-			case @header.text.match(/^\w+\s+/)[0].strip
-
-			when "GLB"
-				@builder.buildGLB(self, nil)
-			when "TPT"
-				@builder.buildTPT(self, nil)
-			when "Skid"
-				@builder.buildSkidLabel(self, nil)
-			when "POR"
-				@builder.buildPOR1(self, nil)
-		  else
-				@builder.buildStartingPoint(self)
-			end
+			functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
 		else
 		end
 	end
@@ -316,5 +328,58 @@ class MainMenuController < UIViewController
 	def pickerView(pickerView, didSelectRow: row, inComponent: componenent)
 		@to_loc.text = "#{@to_locations[row]}"
 		@to_loc.resignFirstResponder	
+	end
+
+	def searchBarSearchButtonClicked(searchBar)
+		AFMotion::JSON.get("http://qadnix.endura.enduraproducts.com/cgi-bin/devapi/xxapigetlocs.p", {part: searchBar.text, site: UIApplication.sharedApplication.delegate.site.to_s, user:UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+			if result.success?
+				result = BW::JSON.parse(result.body)
+				if result["success"] == "good"
+					info = result["INFO"].last
+					@popup= UIView.new
+					@popup.frame = [[self.view.frame.size.width / 3.5,self.view.frame.size.height / 3.5],[self.view.frame.size.width / 2, self.view.frame.size.height/2]]
+	    		@popup.setBackgroundColor(UIColor.blackColor)
+	  			@popup.alpha=0.6
+
+	  			close_btn = UIButton.buttonWithType(UIButtonTypeRoundedRect)
+	  			close_btn.tintColor = UIColor.blackColor
+	  			close_btn.frame = [[0,0], [50,50]]
+					close_btn.setTitle('x', forState:UIControlStateNormal)
+					close_btn.setBackgroundColor(UIColor.redColor)
+					close_btn.addTarget(self, action: 'closePopup', forControlEvents:UIControlEventTouchUpInside)
+	  			@popup.addSubview(close_btn)
+	  			
+	  			header = UILabel.new
+	  			header.frame = [[50,0],[@popup.frame.size.width- 50,50]]
+	  			header.setBackgroundColor(UIColor.redColor)
+	  			header.textAlignment = NSTextAlignmentCenter
+	  			header.text = "#{searchBar.text}"
+	  			@popup.addSubview(header)
+
+	  			desc = UILabel.new
+	  			desc.frame = [[20,60],[@popup.frame.size.width, 50]]
+	  			desc.color = UIColor.whiteColor
+	  			desc.text = "Item Description: #{info['ttdesc2']}"
+	  			@popup.addSubview(desc)
+
+	  			loc = UILabel.new
+	  			loc.frame = [[20,120],[@popup.frame.size.width, 50]]
+	  			loc.color = UIColor.whiteColor
+	  			loc.text = "Item Location: #{info['ttloc']}"
+	  			@popup.addSubview(loc)
+
+	  			self.view.addSubview(@popup)
+
+	  			header = nil
+	  			desc = nil
+	  			loc = nil
+	  		else
+	  			App.alert("Item not found")
+	  		end
+		  elsif result.failure? 
+		  	p result.error.localizedDescription
+		    #block.call({success: false, error: result.error.localizedDescription})
+		  end
+		end
 	end
 end

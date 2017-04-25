@@ -15,13 +15,11 @@ class APIRequest
 
 	def getUrl(type)
 		if type == "login"
-		  "http://192.168.0.169:3000/api/endura/login"
+		  "http://webapi.enduraproducts.com/api/endura/login"
 		elsif type.downcase.match(/label/) != nil
-			#"http://webapi.enduraproducts.com/api/endura/cardinal_printing/#{type.downcase.gsub(" ", "_")}"
-			"http://192.168.0.169:3000/api/endura/cardinal_printing/#{type.downcase.gsub(" ", "_")}"	
+			"http://webapi.enduraproducts.com/api/endura/cardinal_printing/#{type.downcase.gsub(" ", "_")}"	
 		else
-		  #"http://webapi.enduraproducts.com/api/endura/transactions/#{type.downcase}"
-		 	"http://192.168.0.169:3000/api/endura/transactions/#{type.downcase.match(/\w+/)[0]}"
+		 	"http://webapi.enduraproducts.com/api/endura/transactions/#{type.downcase.match(/\w+/)[0]}"
 		end
 	end
 
