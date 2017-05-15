@@ -7,15 +7,15 @@ class MainMenuController < UIViewController
 
 		search = UISearchBar.new
 		search.delegate = self
-		search.frame = [[self.view.frame.size.width - 250,-10],[200,50]]
+		search.frame = [[self.view.frame.size.width - 300,-10],[200,50]]
 		self.navigationController.navigationBar.addSubview(search)
 
 		img = nil
 		button = nil
 		@po_items_count = 0
 
-		#@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
-		@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"]}
+		@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)"]}
+		# @headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
 		@to_locations = ["","2110", "2400", "SAMPLE"]
 
 		#Sets initial Screen View and also gets initial accessor values from ScreenBuilder Model
@@ -38,7 +38,12 @@ class MainMenuController < UIViewController
 		@lot = @builder.lot
 		@po_number = @builder.po_number
 		@label_count = @builder.label_count
+		@carton_num = @builder.carton_item
+		@so_num = @builder.so_number
 		@po_items = nil
+		@carton_delete = @builder.carton_number
+		@cartons = @builder.cartons
+		
 		super
 
 	end
@@ -51,6 +56,80 @@ class MainMenuController < UIViewController
 			APIRequest.new.get("glb", {remarks: @remarks.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase, type: "#{@header.text.downcase}"}) do |result|
 				@builder.updateAlertArea
 				stopSpinner
+			end
+		elsif @header.text.downcase.match(/^car/) != nil
+			data = nil
+			self.view.subviews.each {|subview| subview.class == UIScrollView ? data = subview : next}
+			if data.nil?
+				stopSpinner
+			else
+				data.subviews.each_with_index do |subview, index|
+					unless subview.subviews.empty?
+						unless subview.subviews[1].text.to_i <= 0
+							APIRequest.new.get("car", {so: @so_num.text, line: subview.subviews[0].text, carton_box: @carton_num.text, pack_qty: subview.subviews[1].text, print: "N", prev_packed: subview.subviews[8].text , user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase}) do |result|
+							  
+							end
+						end
+					end
+
+					if index == data.subviews.size - 1
+						clearSubViews
+						functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
+						@so_num.text = ""
+						@carton_num.text = ""
+						@builder.updateAlertArea
+						@so_num.becomeFirstResponder
+						stopSpinner
+					end
+				end
+			end
+			data = nil
+		elsif @header.text.downcase.match(/^cte/) != nil
+			alert = UIAlertController.alertControllerWithTitle("If you delete this carton, you won't be able to get it back. Are you sure you want to delete this carton?", message:  "",preferredStyle: UIAlertControllerStyleAlert)
+			cancelAction = UIAlertAction.actionWithTitle("Cancel", style: UIAlertActionStyleDestructive, handler: lambda { |result| stopSpinner})
+			acceptAction = UIAlertAction.actionWithTitle("Yes, Delete", style: UIAlertActionStyleDefault, handler: lambda {|reuslt| APIRequest.new.get("cte", {carton: @carton_delete.text, site:  UIApplication.sharedApplication.delegate.site, user: UIApplication.sharedApplication.delegate.username.downcase})  do |result| 
+													stopSpinner
+													if result["success"] 
+														@carton_delete.text = ""
+														@builder.updateAlertArea
+													else
+														App.alert(result["result"])
+													end
+												end
+											})
+			alert.addAction(cancelAction)
+			alert.addAction(acceptAction)
+			self.presentViewController(alert, animated: true, completion: nil)
+		elsif @header.text.downcase.match(/^skd/) != nil
+			if @cartons.empty?
+				stopSpinner
+				App.alert "You have no cartons selected."
+			else
+				APIRequest.new.get('skid_create', {user: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site, skid: @skid_num.text, cartons: @cartons.join(',')}) do |result|
+					skid_num = nil
+					unless @skid_num.text.empty?
+						skid_num = @skid_num.text
+					end
+					if result["success"]
+						skid_num = skid_num.nil? ? result["result"]["Status"].strip : skid_num
+						APIRequest.new.get('skid_label', {user: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site, skid_num: skid_num, printer: UIApplication.sharedApplication.delegate.printer}) do |result|
+							if result["success"]
+								clearSubViews
+								@skid_num.text = ""
+								@so_num.text = ""
+								@builder.buildSKD1(self, nil)
+								@builder.updateAlertArea
+								stopSpinner
+							else
+								stopSpinner
+								App.alert("#{result["result"]}")
+							end
+						end
+					else
+						stopSpinner
+						App.alert("#{result["result"]["error"]}")
+					end
+				end
 			end
 		else
 			if @tag_num.text.empty?
@@ -167,6 +246,10 @@ class MainMenuController < UIViewController
 				@builder.buildGLB(self, current_text)
 			when "POR"
 				poValidate(@po_number.text)
+			when "CAR"
+				@builder.buildCAR(self, current_text)
+			when "SKD"
+				@builder.buildSKD2(self, current_text)
 			else
 				@builder.buildGenericView(self, current_text)
 			end
@@ -185,6 +268,8 @@ class MainMenuController < UIViewController
 			@builder.buildSkidLabel(self, nil)
 		when "POR"
 			@builder.buildPOR1(self, nil)
+		when "SKD"
+			@builder.buildSKD1(self, nil)
 	  else
 			@builder.buildStartingPoint(self)
 		end
@@ -231,6 +316,7 @@ class MainMenuController < UIViewController
 	end
 
 	def clearSubViews
+		self.navigationItem.rightBarButtonItem = nil
 		self.view.subviews.each do |subview|
 			subview.removeFromSuperview
 		end
@@ -331,54 +417,65 @@ class MainMenuController < UIViewController
 	end
 
 	def searchBarSearchButtonClicked(searchBar)
-		AFMotion::JSON.get("http://qadnix.endura.enduraproducts.com/cgi-bin/devapi/xxapigetlocs.p", {part: searchBar.text, site: UIApplication.sharedApplication.delegate.site.to_s, user:UIApplication.sharedApplication.delegate.username.downcase}) do |result|
-			if result.success?
-				result = BW::JSON.parse(result.body)
-				if result["success"] == "good"
-					info = result["INFO"].last
-					@popup= UIView.new
-					@popup.frame = [[self.view.frame.size.width / 3.5,self.view.frame.size.height / 3.5],[self.view.frame.size.width / 2, self.view.frame.size.height/2]]
-	    		@popup.setBackgroundColor(UIColor.blackColor)
-	  			@popup.alpha=0.6
+		APIRequest.new.get('item_lookup', {part: searchBar.text, site: UIApplication.sharedApplication.delegate.site.to_s, user:UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+			if result["success"] == "good"
+				info = result["INFO"].last
+				@popup= UIScrollView.new
+				@popup.frame = [[self.view.frame.size.width / 3.5,self.view.frame.size.height / 3.5],[self.view.frame.size.width / 2, self.view.frame.size.height/2]]
+    		@popup.setBackgroundColor(UIColor.blackColor)
+  			@popup.alpha=0.6
 
-	  			close_btn = UIButton.buttonWithType(UIButtonTypeRoundedRect)
-	  			close_btn.tintColor = UIColor.blackColor
-	  			close_btn.frame = [[0,0], [50,50]]
-					close_btn.setTitle('x', forState:UIControlStateNormal)
-					close_btn.setBackgroundColor(UIColor.redColor)
-					close_btn.addTarget(self, action: 'closePopup', forControlEvents:UIControlEventTouchUpInside)
-	  			@popup.addSubview(close_btn)
-	  			
-	  			header = UILabel.new
-	  			header.frame = [[50,0],[@popup.frame.size.width- 50,50]]
-	  			header.setBackgroundColor(UIColor.redColor)
-	  			header.textAlignment = NSTextAlignmentCenter
-	  			header.text = "#{searchBar.text}"
-	  			@popup.addSubview(header)
+  			close_btn = UIButton.buttonWithType(UIButtonTypeRoundedRect)
+  			close_btn.tintColor = UIColor.blackColor
+  			close_btn.frame = [[0,0], [50,50]]
+				close_btn.setTitle('x', forState:UIControlStateNormal)
+				close_btn.setBackgroundColor(UIColor.redColor)
+				close_btn.addTarget(self, action: 'closePopup', forControlEvents:UIControlEventTouchUpInside)
+  			@popup.addSubview(close_btn)
+  			
+  			header = UILabel.new
+  			header.frame = [[50,0],[@popup.frame.size.width- 50,50]]
+  			header.setBackgroundColor(UIColor.redColor)
+  			header.textAlignment = NSTextAlignmentCenter
+  			header.text = "#{searchBar.text}"
+  			@popup.addSubview(header)
 
-	  			desc = UILabel.new
-	  			desc.frame = [[20,60],[@popup.frame.size.width, 50]]
-	  			desc.color = UIColor.whiteColor
-	  			desc.text = "Item Description: #{info['ttdesc2']}"
-	  			@popup.addSubview(desc)
+  			desc = UILabel.new
+  			desc.frame = [[0,50],[@popup.frame.size.width, 50]]
+  			desc.setBackgroundColor(UIColor.whiteColor)
+  			desc.textAlignment = NSTextAlignmentCenter
+  			#desc.text = "Item Description: #{info['ttdesc1']}"
+  			desc.text = "Item Description: #{info['ttdesc2']}"
+  			@popup.addSubview(desc)
 
+  			position = 60
+  			result["INFO"].each do |info|
+  				position = position += 60
 	  			loc = UILabel.new
-	  			loc.frame = [[20,120],[@popup.frame.size.width, 50]]
+	  			loc.frame = [[20,position],[@popup.frame.size.width / 2, 50]]
 	  			loc.color = UIColor.whiteColor
 	  			loc.text = "Item Location: #{info['ttloc']}"
+
+	  			qty_label = UILabel.new
+	  			qty_label.frame = [[@popup.frame.size.width / 2, position], [@popup.frame.size.width / 2, 50]]
+	  			qty_label.color = UIColor.whiteColor
+	  			qty_label.text = "Location Qty: #{info['ttqtyloc'].to_i}"
 	  			@popup.addSubview(loc)
-
-	  			self.view.addSubview(@popup)
-
-	  			header = nil
-	  			desc = nil
+	  			@popup.addSubview(qty_label)
 	  			loc = nil
-	  		else
-	  			App.alert("Item not found")
+	  			qty_label = nil
 	  		end
+
+  			@popup.contentSize = CGSizeMake(@popup.frame.size.width - 440, position+50)
+
+  			self.view.addSubview(@popup)
+
+  			header = nil
+  			desc = nil
 		  elsif result.failure? 
 		  	p result.error.localizedDescription
-		    #block.call({success: false, error: result.error.localizedDescription})
+		  else
+		  	App.alert("Item not found")
 		  end
 		end
 	end

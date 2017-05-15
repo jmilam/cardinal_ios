@@ -15,6 +15,7 @@ class AppDelegate
     @window.rootViewController = navigationController
     @window.makeKeyAndVisible
 
+    
     return true if RUBYMOTION_ENV == 'test'
   end
 end

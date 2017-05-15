@@ -14,12 +14,20 @@ class APIRequest
 	end
 
 	def getUrl(type)
+		#if RUBYMOTION_ENV == "test" || RUBYMOTION_ENV == "development"
+			@api_url = "http://webapidev.enduraproducts.com/api/endura"
+		#else
+		#	@api_url = "http://webapi.enduraproducts.com/api/endura"
+		#end
+
+		#@api_url = "http://localhost:3000/api/endura"
+
 		if type == "login"
-		  "http://webapi.enduraproducts.com/api/endura/login"
+		  "#{@api_url}/login"
 		elsif type.downcase.match(/label/) != nil
-			"http://webapi.enduraproducts.com/api/endura/cardinal_printing/#{type.downcase.gsub(" ", "_")}"	
+			"#{@api_url}/cardinal_printing/#{type.downcase.gsub(" ", "_")}"	
 		else
-		 	"http://webapi.enduraproducts.com/api/endura/transactions/#{type.downcase.match(/\w+/)[0]}"
+		 	"#{@api_url}/transactions/#{type.downcase.match(/\w+/)[0]}"
 		end
 	end
 
