@@ -21,8 +21,8 @@ Motion::Project::App.setup do |app|
   app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/42955cf1-ffd9-4308-88bd-adf0680a992f.mobileprovision'
   app.entitlements['get-task-allow'] = false
   #app.deployment_target = '9.3'
-  #app.deployment_target = '10.0'
-  app.version = '1.0.3'
+  app.deployment_target = '10.0'
+  app.version = '1.0.4'
   app.archs["iphoneSimulator"] = ["i386"]
   app.archs["iPhoneOS"] = ["armv7"]
   app.icons = ["cardinal.jpg"]

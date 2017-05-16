@@ -25,6 +25,7 @@ class ScreenBuilder < UIViewController
 	attr_reader :carton_item
 	attr_reader :carton_number
 	attr_reader :cartons
+	attr_reader :line_number
 
 	def initWithView(view)
 		@cartons = Array.new
@@ -132,6 +133,9 @@ class ScreenBuilder < UIViewController
 
 		@ship_to = createTextField
 		addSharedAttributes(@ship_to, "Ship To...")
+
+		@line_number = createTextField
+		addSharedAttributes(@line_number, "Line Number...")
 
 		@current_qty = createLabel
 		@current_qty.textAlignment = UITextAlignmentCenter
@@ -373,8 +377,6 @@ class ScreenBuilder < UIViewController
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
 
 		@data_container = UIScrollView.new
-		breakline = UILabel.new
-		breakline.backgroundColor = UIColor.blackColor
 
 		@por_loc = ["INSPECT", "C-ROCK", "UPFLOOR"]
 		@locations = UIPickerView.new
@@ -386,37 +388,56 @@ class ScreenBuilder < UIViewController
 		data_hash[:po_items].each do |data|
 			new_view = UIView.new
 			new_view.frame = [[0,position],[600,100]]
-			label1 = UILabel.alloc.initWithFrame([[0,0],[200,30]])
-			label2 = createTextField
-			addSharedAttributes(label2, "Qty receiving?")
-			label2.frame = [[400,0],[200,30]]
-			label2.layer.borderWidth= 0.0
-			label3 = UILabel.alloc.initWithFrame([[0, 40], [200,20]])
-			label4 = UILabel.alloc.initWithFrame([[400,40],[200,30]])
-			label5 = createTextField
-			addSharedAttributes(label5, "Location..")
-			label5.frame = [[225,0], [150,30]]
-			label5.layer.borderWidth= 0.0
-			label5.inputView = @locations
-			#breakline.frame = [[0,80], [600,1]]
 
-			label1.text = data["ttitem"]
-			label3.text = "Line # " + data["ttline"].to_s
-			label4.text = data["ttqtyopen"].to_i.to_s + " To Be Received"
+			label1 = UILabel.alloc.initWithFrame([[0, 0], [100,20]])
+
+			label2 = UILabel.alloc.initWithFrame([[60,0],[100,30]])
+			label2.adjustsFontSizeToFitWidth = true
+
+
+			label3 = createTextField
+			addSharedAttributes(label3, "Location..")
+			label3.frame = [[170,0], [150,30]]
+			label3.layer.borderWidth= 0.0
+			label3.inputView = @locations
+			
+
+			label4 = createTextField
+			addSharedAttributes(label4, "Qty receiving?")
+			label4.frame = [[330,0],[150,30]]
+			label4.layer.borderWidth= 0.0
+
+
+			
+			label5 = UILabel.alloc.initWithFrame([[490,0],[100,30]])
+			label5.adjustsFontSizeToFitWidth = true
+
+			breakline = UILabel.new
+			breakline.backgroundColor = UIColor.blackColor
+			breakline.frame = [[0,39], [600,1]]
+
+			label1.text = data["ttline"].to_s
+			label2.text = data["ttitem"]
+			label5.text = "Open Qty: " + data["ttqtyopen"].to_i.to_s 
+
 			new_view.addSubview(label1)
 			new_view.addSubview(label2)
 			new_view.addSubview(label3)
 			new_view.addSubview(label4)
 			new_view.addSubview(label5)
-			#new_view.addSubview(breakline)
+			new_view.addSubview(breakline)
+			
+
 			@data_container.addSubview(new_view)
-			position += 100
+
+			position += 50
 			label1 = nil
 			label2 = nil
 			label3 = nil
 			label4 = nil
 			label5 = nil
 			new_view = nil
+			breakline = nil
 		end
 
 		@data_container.contentSize = CGSizeMake(self.view.frame.size.width - 440, position)
@@ -426,15 +447,32 @@ class ScreenBuilder < UIViewController
 			layout.subviews "table" => @table, "header" => @header,"data_container" => @data_container, "label_count" => @label_count, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410
 			layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
-			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[data_container(==200)]-margin-[label_count(==height)]-(>=10)-|"
-			layout.horizontal "|-left_margin-[data_container]-10-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[label_count(==height)]-margin-[data_container(==575)]-(>=10)-|"
 			layout.horizontal "|-left_margin-[label_count]-10-|"
+			layout.horizontal "|-left_margin-[data_container]-10-|"
 			layout.horizontal "|-0-[table(==400)]-[header]-10-|"
 			layout.horizontal "|-left_margin-[header]-10-|"
 		end
 	end
 
-	def buildCAR(viewController, current_text)
+	def buildCAR1(viewController, current_text)
+		viewController.navigationItem.rightBarButtonItem = @nextBtn
+		@so_number.becomeFirstResponder
+
+		Motion::Layout.new do |layout|
+			layout.view viewController.view
+			layout.subviews "table" => @table, "header" => @header, "so_number" => @so_number, "line_number" => @line_number, "carton_item" => @carton_item, "alert_area" => @alert_area
+			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2) - 20
+			layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[so_number(==height)][line_number(==height)]-margin-[carton_item(==height)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[so_number(==half_width)]-[line_number(==half_width)]-10-|"
+			layout.horizontal "|-left_margin-[carton_item]-10-|"
+			layout.horizontal "|-0-[table(==400)]-[header]-10-|"
+			layout.horizontal "|-left_margin-[header]-10-|"
+		end
+	end
+
+	def buildCAR2(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
 		viewController.view.nextResponder.showSpinner
 
@@ -444,7 +482,7 @@ class ScreenBuilder < UIViewController
 		@table_header = UIView.new
 		@table_header.backgroundColor = UIColor.grayColor
 
-		label = UILabel.alloc.initWithFrame([[20,0],[50,30]])
+		label = UILabel.alloc.initWithFrame([[0,0],[50,30]])
 		label.numberOfLines = 2
 		label.text = "Qty to\nPack"
 		label.adjustsFontSizeToFitWidth = true
@@ -517,19 +555,20 @@ class ScreenBuilder < UIViewController
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
-			layout.subviews "table" => @table, "header" => @header, "so_number" => @so_number, "carton_item" => @carton_item, "table_header" => @table_header, "data_container" => @data_container, "alert_area" => @alert_area
+			layout.subviews "table" => @table, "header" => @header, "so_number" => @so_number, "line_number" => @line_number, "carton_item" => @carton_item, "table_header" => @table_header, "data_container" => @data_container, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2) - 20
 			layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
-			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[so_number(==height)]-margin-[carton_item(==height)]-margin-[table_header(==30)]-[data_container(==450)]-(>=10)-|"
-			layout.horizontal "|-left_margin-[so_number]-10-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[so_number(==height)][line_number(==height)]-margin-[carton_item(==height)]-margin-[table_header(==30)]-[data_container(==450)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[so_number(==half_width)]-[line_number(==half_width)]-10-|"
 			layout.horizontal "|-left_margin-[carton_item]-10-|"
 			layout.horizontal "|-left_margin-[table_header]-10-|"
 			layout.horizontal "|-left_margin-[data_container]-10-|"
 			layout.horizontal "|-0-[table(==400)]-[header]-10-|"
+			layout.horizontal "|-left_margin-[header]-10-|"
 		end
 		@table_header = nil
 
-		APIRequest.new.get('sales_order_details', {so_number: @so_number.text, user: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+		APIRequest.new.get('sales_order_details', {so_number: @so_number.text, line_number: @line_number.text, user: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 			breakline = UILabel.new
 			breakline.backgroundColor = UIColor.blackColor
 			 if result["status"] == "Good"
@@ -538,13 +577,9 @@ class ScreenBuilder < UIViewController
 			  		new_view = UIView.new
 			  		new_view.frame = [[0,position],[600,50]]
 
-		    		label1 = UILabel.alloc.initWithFrame([[0,0],[20,30]])
-						label1.adjustsFontSizeToFitWidth = true
-						label1.textAlignment = UITextAlignmentCenter
-
 						label2 = createTextField
 						addSharedAttributes(label2, "Qty")
-						label2.frame = [[20,0], [50,30]]
+						label2.frame = [[0,0], [50,30]]
 						label2.layer.borderWidth= 0.0
 						
 
@@ -576,7 +611,6 @@ class ScreenBuilder < UIViewController
 						label8.adjustsFontSizeToFitWidth = true
 						label8.textAlignment = UITextAlignmentCenter
 
-			  		label1.text = "#{line["ttli"]}"
 			  		label3.text = "#{line["ttqtyord"]}"
 						label4.text = "#{line["ttqtyshp"]}"
 						label5.text = "#{line["ttcarton"]}"
@@ -585,7 +619,6 @@ class ScreenBuilder < UIViewController
 						label8.text = "#{line["ttdesc"]}"
 						label9.text = "#{line["ttqtypck"]}"
 
-			   		new_view.addSubview(label1)
 						new_view.addSubview(label2)
 						new_view.addSubview(label3)
 						new_view.addSubview(label4)
@@ -598,7 +631,6 @@ class ScreenBuilder < UIViewController
 			  		@data_container.addSubview(new_view)
 
 			  		position += 50
-			  		label1 = nil
 						label2 = nil
 						label3 = nil
 						label4 = nil
@@ -890,7 +922,8 @@ class ScreenBuilder < UIViewController
 						@current_qty.text = "Current tag qty: #{result["result"]["ttqtyloc"].to_i}"
 						@current_item.text = "#{result["result"]["ttdesc1"]}"
 					else
-						self.updateAlertArea("failure", result["result"]["ttitem"])
+						@to_loc.userInteractionEnabled = true
+						#self.updateAlertArea("failure", result["result"]["ttitem"])
 					end
 					textfield.superview.nextResponder.stopSpinner
 				end	
@@ -910,7 +943,7 @@ class ScreenBuilder < UIViewController
 
 					@from_loc.text = default_location
 				end
-				textfield.superview.nextResponder.stopSpinner
+				textfield.superview.nextResponder.stopSpinner unless textfield.superview.nil?
 			end
 		elsif textfield === @carton_item
 			#validate valid box carton. If not alert invalid box
@@ -919,7 +952,7 @@ class ScreenBuilder < UIViewController
 				else
 					App.alert(result["error"])
 					textfield.text = ""
-					textfield.becomeFirstResponder
+					#textfield.becomeFirstResponder
 				end
 			end
 		elsif textfield === @skid_num && @header.text.match(/^\w+\s+/)[0].strip.downcase == "skd"

@@ -14,7 +14,8 @@ class MainMenuController < UIViewController
 		button = nil
 		@po_items_count = 0
 
-		@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)"]}
+		@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"]}
+		# @headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)"]}
 		# @headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
 		@to_locations = ["","2110", "2400", "SAMPLE"]
 
@@ -43,6 +44,7 @@ class MainMenuController < UIViewController
 		@po_items = nil
 		@carton_delete = @builder.carton_number
 		@cartons = @builder.cartons
+		@line_number = @builder.line_number
 		
 		super
 
@@ -76,6 +78,7 @@ class MainMenuController < UIViewController
 						clearSubViews
 						functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
 						@so_num.text = ""
+						@line_number = ""
 						@carton_num.text = ""
 						@builder.updateAlertArea
 						@so_num.becomeFirstResponder
@@ -139,16 +142,20 @@ class MainMenuController < UIViewController
 					if @data.nil?
 						stopSpinner
 					else
+					
+
 						begin
 							tag_nums = [] 
 							@data.subviews.each do |subview|
 								if subview.class == UIView
-									line = subview.subviews[2].text.match(/\d+/)
+									line = subview.subviews[0].text.match(/\d+/)
 									line = line[0] unless line.nil?
-									APIRequest.new.get(@header.text, {type: "por", po_num: @po_number.text, location: subview.subviews[4].text, qty: subview.subviews[1].text, line: line, label_count: "#{@label_count.text}", user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase}) do |result|
-										tag_nums << result["Tag"]
-										stopSpinner
-									end if subview.subviews[1].text.to_i > 0
+									unless subview.subviews[2].text == "" && subview.subviews[3].text == ""
+										APIRequest.new.get(@header.text, {type: "por", po_num: @po_number.text, location: subview.subviews[2].text, qty: subview.subviews[3].text, line: line, label_count: "#{@label_count.text}", user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase}) do |result|
+											tag_nums << result["Tag"]
+											stopSpinner
+										end if subview.subviews[3].text.to_i > 0
+									end
 								else
 									stopSpinner
 								end
@@ -223,11 +230,13 @@ class MainMenuController < UIViewController
 		temp.origin.x = -1000
 		UIView.animateWithDuration(0.5, delay: 0.0, options: UIViewAnimationCurveEaseOut, animations: lambda { @tag_num.frame = temp}, completion: lambda {
 			|finished| 
-			clearSubViews
+
+			header_txt = @header.text.match(/^\w+\s+/)[0].strip
+			clearSubViews unless header_txt == "CAR"
 
 			@tag_num.userInteractionEnabled = false
 
-			case @header.text.match(/^\w+\s+/)[0].strip
+			case header_txt
 			when "PDL"
 				@builder.buildPDL(self, current_text)
 			when "PUL"
@@ -247,7 +256,13 @@ class MainMenuController < UIViewController
 			when "POR"
 				poValidate(@po_number.text)
 			when "CAR"
-				@builder.buildCAR(self, current_text)
+				if @line_number.text.empty?
+					App.alert "You must enter a line number."
+					@line_number.becomeFirstResponder
+				else
+					clearSubViews
+					@builder.buildCAR2(self, current_text)
+				end
 			when "SKD"
 				@builder.buildSKD2(self, current_text)
 			else
@@ -270,6 +285,8 @@ class MainMenuController < UIViewController
 			@builder.buildPOR1(self, nil)
 		when "SKD"
 			@builder.buildSKD1(self, nil)
+		when "CAR"
+			@builder.buildCAR1(self, nil)
 	  else
 			@builder.buildStartingPoint(self)
 		end
