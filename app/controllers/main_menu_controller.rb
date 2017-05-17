@@ -142,39 +142,39 @@ class MainMenuController < UIViewController
 					if @data.nil?
 						stopSpinner
 					else
-					
-
 						begin
-							tag_nums = [] 
+							lines = [] 
+							locations = []
+							qtys = []
+
 							@data.subviews.each do |subview|
 								if subview.class == UIView
 									line = subview.subviews[0].text.match(/\d+/)
-									line = line[0] unless line.nil?
 									unless subview.subviews[2].text == "" && subview.subviews[3].text == ""
-										APIRequest.new.get(@header.text, {type: "por", po_num: @po_number.text, location: subview.subviews[2].text, qty: subview.subviews[3].text, line: line, label_count: "#{@label_count.text}", user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase}) do |result|
-											tag_nums << result["Tag"]
-											stopSpinner
-										end if subview.subviews[3].text.to_i > 0
+										lines << line[0] unless line.nil?
+										locations << subview.subviews[2].text
+										qtys << subview.subviews[3].text
 									end
+								end
+							end
+							
+							label_count = @label_count.text.empty? ? "1" : @label_count.text
+							APIRequest.new.get(@header.text, {type: "por", po_num: @po_number.text, locations: locations, qtys: qtys, lines: lines, label_count: "#{label_count}", user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase}) do |result|
+								#p result
+								if result["success"]
+									@po_number.text = ""
+									clearSubViews
+									@builder.buildPOR1(self, nil)
 								else
-									stopSpinner
+									@builder.updateAlertArea("failure", result[:error])
 								end
-
+								stopSpinner
 							end
-
-							tag_nums.each do |tag_num|
-								unless tag_num.empty?
-									APIRequest.new.get("print_label", {tag: tag_num, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, type: "print_label"}) do |result|
-									end
-								end
-							end
+							
 						rescue => error
 							error
 						end
 					end
-					@po_number.text = ""
-					clearSubViews
-					@builder.buildPOR1(self, nil)
 				end
 			else
 				APIRequest.new.get('tag_details', {tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
