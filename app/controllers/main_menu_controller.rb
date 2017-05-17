@@ -1,7 +1,7 @@
 class MainMenuController < UIViewController
 
 	def viewDidLoad
-		self.title = 'Main Menu'
+		self.title = 'Cardinal Functions'
 		self.view.backgroundColor = UIColor.whiteColor
 		self.automaticallyAdjustsScrollViewInsets = false
 
@@ -14,8 +14,8 @@ class MainMenuController < UIViewController
 		button = nil
 		@po_items_count = 0
 
-		@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"]}
-		# @headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)"]}
+		#@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"]}
+		@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)"]}
 		# @headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
 		@to_locations = ["","2110", "2400", "SAMPLE"]
 
@@ -372,6 +372,14 @@ class MainMenuController < UIViewController
 		end
 	end
 
+
+	def tableView(tableView, willDisplayHeaderView: view, forSection: section)
+		view.tintColor = UIColor.colorWithRed(0.63, green: 0.52, blue: 0.31, alpha: 1.0)
+		view.textLabel.textColor = UIColor.whiteColor
+		view.textLabel.font = UIFont.fontWithName("Baskerville-SemiBold", size: 15.0)
+		view.textLabel.textAlignment = NSTextAlignmentCenter
+	end
+
 	def tableView(tableView, cellForRowAtIndexPath: indexPath)
 		@reuseIdentifier ||= "CELL_IDENTIFIER"
 
@@ -381,6 +389,7 @@ class MainMenuController < UIViewController
  		
  		if tableView == @table
 			cell.textLabel.text = @headers.values[indexPath.section][indexPath.row]
+			cell.textLabel.font = UIFont.fontWithName("ZapfDingbatsITC", size: 15.0) 
 			cell.setSelectedBackgroundView(@cell_bg)
 		else
 			unless @po_items[indexPath.row].nil?

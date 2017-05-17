@@ -15,11 +15,10 @@ class APIRequest
 
 	def getUrl(type)
 		#if RUBYMOTION_ENV == "test" || RUBYMOTION_ENV == "development"
-			@api_url = "http://webapidev.enduraproducts.com/api/endura"
+			#@api_url = "http://webapidev.enduraproducts.com/api/endura"
 		#else
-		#@api_url = "http://webapi.enduraproducts.com/api/endura"
+		@api_url = "http://webapi.enduraproducts.com/api/endura"
 		#end
-
 		#@api_url = "http://localhost:3000/api/endura"
 
 		if type == "login"

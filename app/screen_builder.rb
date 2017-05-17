@@ -37,6 +37,12 @@ class ScreenBuilder < UIViewController
 	end
 
 	def buildLogIn(viewController)
+		@header = createLabel
+		@header.backgroundColor = UIColor.colorWithRed(0.84, green:0.26, blue: 0.21, alpha: 0.8)
+
+		@footer = createLabel
+		@footer.backgroundColor = UIColor.colorWithRed(0.84, green:0.26, blue: 0.21, alpha: 0.8)
+
 		@username = createTextField
 		addSharedAttributes(@username, 'Username')
 		@username.becomeFirstResponder
@@ -59,14 +65,16 @@ class ScreenBuilder < UIViewController
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
-			layout.subviews "username" => @username, "password" => @password, "site_num" => @site_num, "printer" => @printer, "login" => @login
+			layout.subviews "header" => @header, "username" => @username, "password" => @password, "site_num" => @site_num, "printer" => @printer, "login" => @login, "footer" => @footer
 			layout.metrics "margin" => 10, "height" => 50
-			layout.vertical "|-75-[username(==height)]-margin-[password(==height)]-margin-[site_num(==height)]-margin-[printer(==height)]-margin-[login(==height)]-(>=15)-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==height)]-125-[username(==height)]-margin-[password(==height)]-margin-[site_num(==height)]-margin-[printer(==height)]-margin-[login(==height)]-(>=15)-[footer(==height)]-|"
+			layout.horizontal "|-0-[header]-0-|"
 			layout.horizontal "|-(>=100)-[username(==300)]-(>=100)-|"
 			layout.horizontal "|-(>=100)-[password(==300)]-(>=100)-|"
 			layout.horizontal "|-(>=100)-[site_num(==300)]-(>=100)-|"
 			layout.horizontal "|-(>=100)-[printer(==300)]-(>=100)-|"
 			layout.horizontal "|-10-[login]-10-|"
+			layout.horizontal "|-0-[footer]-0-|"
 		end
 	end
 
@@ -386,8 +394,14 @@ class ScreenBuilder < UIViewController
 
 		position = 0
 		data_hash[:po_items].each do |data|
+				
+
 			new_view = UIView.new
 			new_view.frame = [[0,position],[600,100]]
+
+			longGesture = UILongPressGestureRecognizer.alloc.initWithTarget(self, action: 'handleLongPressGestures:')
+			longGesture.minimumPressDuration = 0.5
+			new_view.addGestureRecognizer(longGesture)
 
 			label1 = UILabel.alloc.initWithFrame([[0, 0], [100,20]])
 
@@ -438,6 +452,7 @@ class ScreenBuilder < UIViewController
 			label5 = nil
 			new_view = nil
 			breakline = nil
+			longGesture = nil
 		end
 
 		@data_container.contentSize = CGSizeMake(self.view.frame.size.width - 440, position)
@@ -458,6 +473,8 @@ class ScreenBuilder < UIViewController
 	def buildCAR1(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @nextBtn
 		@so_number.becomeFirstResponder
+		@so_number.userInteractionEnabled = true
+		@line_number.userInteractionEnabled = true
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
@@ -475,6 +492,8 @@ class ScreenBuilder < UIViewController
 	def buildCAR2(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
 		viewController.view.nextResponder.showSpinner
+		@so_number.userInteractionEnabled = false
+		@line_number.userInteractionEnabled = false
 
 		@carton_item.becomeFirstResponder
 
@@ -672,8 +691,9 @@ class ScreenBuilder < UIViewController
 
 		@detail_data = UIScrollView.new
 
-		APIRequest.new.get('skid_create_cartons', {sales_order: @so_number.text, site: UIApplication.sharedApplication.delegate.site.downcase, user: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+		APIRequest.new.get('skid_create_cartons', {so_number: @so_number.text, site: UIApplication.sharedApplication.delegate.site.downcase, user: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 			viewController.view.nextResponder.stopSpinner
+
 			if result["success"]
 				position = 0
 				result["result"].each do |data|
@@ -879,6 +899,11 @@ class ScreenBuilder < UIViewController
 			gesture.view.backgroundColor = UIColor.colorWithRed(0.48, green: 0.70, blue: 0.56, alpha: 0.8)
 			@cartons << gesture.view.subviews[0].text
 		end
+	end
+
+	def handleLongPressGestures(sender)
+		sender.view.subviews[3].text = sender.view.subviews[4].text.match(/\d+/)[0]
+		sender.view.subviews[2].becomeFirstResponder
 	end
 
 	def textField(textField, shouldChangeCharactersInRange: range, replacementString: replacement)

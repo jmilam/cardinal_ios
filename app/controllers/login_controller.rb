@@ -1,7 +1,7 @@
 class LoginController < UIViewController
 
 	def viewDidLoad
-		self.title = 'Login'
+		self.title = 'Welcome To Cardinal'
 		self.view.backgroundColor = UIColor.whiteColor
 		self.automaticallyAdjustsScrollViewInsets = false
 
