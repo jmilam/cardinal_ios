@@ -14,9 +14,12 @@ class MainMenuController < UIViewController
 		button = nil
 		@po_items_count = 0
 
-		#@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"]}
-		@headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)"]}
-		# @headers = {"Inventory" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)"], "Receiving" => ["POR (Purchase Order Receipt)"], "Labels" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Shipping" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
+		# if UIApplication.sharedApplication.delegate.user_roles == "_ShipSalesOrders"
+			@headers = {"Inventory Control" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)", "POR (Purchase Order Receipt)"], "Manufacturing" => ["BKF (Backflush)"], "Label Printing" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Distribution" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
+		# else
+		# 	@headers = {"Inventory Control" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)", "POR (Purchase Order Receipt)"], "Manufacturing" => ["BKF (Backflush)"], "Label Printing" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"], "Distribution" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)"]}
+		# end
+		
 		@to_locations = ["","2110", "2400", "SAMPLE"]
 
 		#Sets initial Screen View and also gets initial accessor values from ScreenBuilder Model
@@ -27,6 +30,7 @@ class MainMenuController < UIViewController
 		@item_num = @builder.item_num
 		@from_loc = @builder.from_loc
 		@tag_num = @builder.tag_num
+		@new_tag_num = @builder.new_tag_num
 		@to_loc = @builder.to_loc
 		@qty = @builder.qty
 		@from_site = @builder.from_site
@@ -38,14 +42,16 @@ class MainMenuController < UIViewController
 		@remarks = @builder.remarks
 		@lot = @builder.lot
 		@po_number = @builder.po_number
-		@label_count = @builder.label_count
+		# @label_count = @builder.label_count
 		@carton_num = @builder.carton_item
 		@so_num = @builder.so_number
 		@po_items = nil
 		@carton_delete = @builder.carton_number
 		@cartons = @builder.cartons
 		@line_number = @builder.line_number
-		
+		@prod_line = @builder.prod_line
+		@user_initials = @builder.user_initials
+
 		super
 
 	end
@@ -55,7 +61,12 @@ class MainMenuController < UIViewController
 		self.view.endEditing(true)
 		showSpinner
 		if @header.text.downcase.match(/glb/) != nil
-			APIRequest.new.get("glb", {remarks: @remarks.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase, type: "#{@header.text.downcase}"}) do |result|
+			APIRequest.new.get("glb", {remarks: @remarks.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site , type: "#{@header.text.downcase}"}) do |result|
+				@builder.updateAlertArea
+				stopSpinner
+			end
+		elsif @header.text.downcase.match(/^tpt/) != nil
+			APIRequest.new.get("print_label", {tag: @tag_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site, type: "print_label"}) do |result|
 				@builder.updateAlertArea
 				stopSpinner
 			end
@@ -67,24 +78,22 @@ class MainMenuController < UIViewController
 			else
 				data.subviews.each_with_index do |subview, index|
 					unless subview.subviews.empty?
-						unless subview.subviews[1].text.to_i <= 0
-							APIRequest.new.get("car", {so: @so_num.text, line: subview.subviews[0].text, carton_box: @carton_num.text, pack_qty: subview.subviews[1].text, print: "N", prev_packed: subview.subviews[8].text , user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase}) do |result|
-							  
+						unless subview.subviews[0].text.to_i <= 0
+							APIRequest.new.get("car", {so: @so_num.text, line: @line_number.text, carton_box: @carton_num.text, pack_qty: subview.subviews[0].text, print: "N", prev_packed: subview.subviews[7].text , user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase}) do |result|
+							  clearSubViews
+							  functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
+							  @so_num.text = ""
+							  @line_number.text = ""
+							  @carton_num.text = ""
+							  @builder.updateAlertArea
+								@so_num.becomeFirstResponder
+								stopSpinner
 							end
 						end
 					end
-
-					if index == data.subviews.size - 1
-						clearSubViews
-						functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
-						@so_num.text = ""
-						@line_number = ""
-						@carton_num.text = ""
-						@builder.updateAlertArea
-						@so_num.becomeFirstResponder
-						stopSpinner
-					end
 				end
+
+
 			end
 			data = nil
 		elsif @header.text.downcase.match(/^cte/) != nil
@@ -134,8 +143,25 @@ class MainMenuController < UIViewController
 					end
 				end
 			end
+		elsif @header.text.downcase.match(/^bkf/) != nil
+			if @qty.text.to_i == 0
+				stopSpinner
+				App.alert "You must enter a quantity to process backflush."
+			else
+				APIRequest.new.get("bkf", {part: @item_num.text, qty: @qty.text, prod_line: @prod_line.text, user_initials: @user_initials.text, user: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site.downcase}) do |result|
+					stopSpinner
+					if result["Status"]
+						@item_num.text = ""
+						@qty.text = ""
+						@prod_line.text = ""
+						@builder.updateAlertArea
+					else
+						@builder.updateAlertArea("failure", result[:error])
+					end
+				end
+			end
 		else
-			if @tag_num.text.empty?
+			if @new_tag_num.text.empty?
 				if @header.text.downcase.match(/por/) != nil
 					@data = nil
 					self.view.subviews.each {|subview| subview.class == UIScrollView ? @data = subview : next}
@@ -146,149 +172,230 @@ class MainMenuController < UIViewController
 							lines = [] 
 							locations = []
 							qtys = []
+							multipliers = []
 
 							@data.subviews.each do |subview|
 								if subview.class == UIView
 									line = subview.subviews[0].text.match(/\d+/)
 									unless subview.subviews[2].text == "" && subview.subviews[3].text == ""
-										lines << line[0] unless line.nil?
-										locations << subview.subviews[2].text
-										qtys << subview.subviews[3].text
+										if subview.subviews[4].text.to_i <= 0
+											stopSpinner
+											return @builder.updateAlertArea('failure', "You cannot have a negative quantity.\n Please check the qtys you entered \n and Submit the transaction again.")
+											
+										else
+											lines << line[0] unless line.nil?
+											locations << subview.subviews[2].text
+											qtys << subview.subviews[3].text
+											multipliers << subview.subviews[4].text
+										end
 									end
 								end
 							end
 							
-							label_count = @label_count.text.empty? ? "1" : @label_count.text
-							APIRequest.new.get(@header.text, {type: "por", po_num: @po_number.text, locations: locations, qtys: qtys, lines: lines, label_count: "#{label_count}", user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase}) do |result|
-								#p result
+							label_count = "1"
+							APIRequest.new.get(@header.text, {type: "por", po_num: @po_number.text, locations: locations, qtys: qtys, multipliers: multipliers, lines: lines, label_count: "#{label_count}", user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site:  UIApplication.sharedApplication.delegate.site.downcase}) do |result|
 								if result["success"]
 									@po_number.text = ""
 									clearSubViews
 									@builder.buildPOR1(self, nil)
+									@builder.updateAlertArea
 								else
-									@builder.updateAlertArea("failure", result[:error])
+									@builder.updateAlertArea("failure", "#{result["result"]}")
 								end
 								stopSpinner
 							end
 							
 						rescue => error
-							error
+							stopSpinner
+							@builder.updateAlertArea("failure", error)
 						end
+					end
+				else
+					APIRequest.new.get('skid_label', {user: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site, skid_num: @skid_num.text, printer: UIApplication.sharedApplication.delegate.printer}) do |result|
+						if result["success"]
+							clearSubViews
+							@skid_num.text = ""
+							@builder.buildSkidLabel(self, nil)
+							@builder.updateAlertArea
+						else
+							App.alert("#{result["result"]}")
+						end
+						stopSpinner
 					end
 				end
 			else
-				APIRequest.new.get('tag_details', {tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
-					item = validate_text_presence(@item_num.text, result["result"]["ttitem"])
-					from_loc = validate_text_presence(@from_loc.text, result["result"]["ttloc"])
-					to_loc = validate_text_presence(@to_loc.text, result["result"]["ttloc"])
-					to_site = validate_text_presence(@to_site.text, result["result"]["ttsite"])
-					from_site = validate_text_presence(@from_site.text, result["result"]["ttsite"])
-					qty = validate_text_presence(@qty.text, result["result"]["ttqtyloc"])
-					if result["success"] == true 
-						result = result["result"]
-	
-						APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
-							if result["success"] == true 
-								@builder.updateAlertArea
-								functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
-								unless @header.text.downcase.match(/pct/).nil? && @header.text.downcase.match(/plo/).nil?
-									alert = UIAlertController.alertControllerWithTitle("Would you like to print a new label?", message:  "",preferredStyle: UIAlertControllerStyleAlert)
-									cancelAction = UIAlertAction.actionWithTitle("No Thanks", style: UIAlertActionStyleDestructive, handler: lambda { |result| })
-									printAction = UIAlertAction.actionWithTitle("Yes, Please", style: UIAlertActionStyleDefault, handler: lambda {|reuslt| APIRequest.new.get("print_label", {tag: @tag_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, type: "print_label"}) {|result|}})
-									alert.addAction(cancelAction)
-									alert.addAction(printAction)
-									self.presentViewController(alert, animated: true, completion: nil)
-								end
-							else
-								@builder.updateAlertArea("failure", result["result"])
-							end
-							stopSpinner
-						end	
+				if @header.text.downcase.match(/plo/) && @to_loc.text.empty?
+					App.alert 'You must have a to location.'
+					stopSpinner
+				else
+					if @qty.text.to_i < 0
+						App.alert('You cannot have a negative quantity.')
+						stopSpinner
 					else
-						if @header.text.downcase.match(/plo/).nil?
-							stopSpinner
-						else
-							APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
-								if result["success"] == true 
-									@builder.updateAlertArea
-									
-								else
-									@builder.updateAlertArea("failure", result["result"])
-								end
-								stopSpinner
-							end	
-						end
-					end
+				  	APIRequest.new.get('tag_details', {tag: @new_tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+				  		item = validate_text_presence(@item_num.text, result["result"]["ttitem"])
+				  		from_loc = validate_text_presence(@from_loc.text, result["result"]["ttloc"])
+				  		to_loc = validate_text_presence(@to_loc.text, result["result"]["ttloc"])
+				  		to_site = validate_text_presence(@to_site.text, result["result"]["ttsite"])
+				  		from_site = validate_text_presence(@from_site.text, result["result"]["ttsite"])
+				  		qty = validate_text_presence(@qty.text, result["result"]["ttqtyloc"])
+				  		if result["success"] == true 
+				  			result = result["result"]
+	  	
+				  			APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @new_tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
+				  				if result["success"] == true
+				  					tag_num = @new_tag_num.text 
+				  					@builder.updateAlertArea
+	
+				  					if @header.text.downcase.match(/pct/) != nil || @header.text.downcase.match(/plo/) != nil
+				  						alert = UIAlertController.alertControllerWithTitle("Would you like to print a new label?", message:  "",preferredStyle: UIAlertControllerStyleAlert)
+				  						cancelAction = UIAlertAction.actionWithTitle("No Thanks", style: UIAlertActionStyleDestructive, handler: lambda { |result| 
+				  																																																															functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
+				  																																																														})
+				  						printAction = UIAlertAction.actionWithTitle("Yes, Please", style: UIAlertActionStyleDefault, handler: lambda {|reuslt| APIRequest.new.get("print_label", {tag: tag_num, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site , type: "print_label"}) {|result| functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)}})
+				  						alert.addAction(cancelAction)
+				  						alert.addAction(printAction)
+				  						self.presentViewController(alert, animated: true, completion: nil)
+				  					else
+				  						functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
+				  					end
+				  				else
+				  					@builder.updateAlertArea("failure", result["result"])
+				  				end
+				  				stopSpinner
+				  			end	
+				  		else
+				  			if @header.text.downcase.match(/plo/).nil?
+				  				stopSpinner
+				  			else
+				  				APIRequest.new.get(@header.text, {item_num: item, qty_to_move: qty, from_loc: from_loc, to_loc: to_loc, tag: @new_tag_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, from_site: from_site, to_site: to_site, skid_num: @skid_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site: UIApplication.sharedApplication.delegate.site.downcase, lot: @lot.text, remarks: @remarks.text, type: "#{@header.text.downcase}"}) do |result|
+				  					if result["success"] == true 
+				  						tag_num = @new_tag_num.text 
+				  						@builder.updateAlertArea
+ 	
+				  						if @header.text.downcase.match(/pct/) != nil || @header.text.downcase.match(/plo/) != nil
+				  							alert = UIAlertController.alertControllerWithTitle("Would you like to print a new label?", message:  "",preferredStyle: UIAlertControllerStyleAlert)
+				  							cancelAction = UIAlertAction.actionWithTitle("No Thanks", style: UIAlertActionStyleDestructive, handler: lambda { |result| functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)})
+				  							printAction = UIAlertAction.actionWithTitle("Yes, Please", style: UIAlertActionStyleDefault, handler: lambda {|reuslt| APIRequest.new.get("print_label", {tag: tag_num, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site, type: "print_label"}) {|result| functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)}})
+				  							alert.addAction(cancelAction)
+				  							alert.addAction(printAction)
+				  							self.presentViewController(alert, animated: true, completion: nil)
+				  						else
+				  							functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
+				  						end
+				  					else
+				  						@builder.updateAlertArea("failure", result["result"])
+				  					end
+				  					stopSpinner
+				  				end	
+				  			end
+				  		end
+				  	end
+				  end
 				end
 			end
 		end
 	end
 
 	def next
-		current_text = @tag_num.text
-		temp = self.view.frame
-		temp.origin.x = -1000
-		UIView.animateWithDuration(0.5, delay: 0.0, options: UIViewAnimationCurveEaseOut, animations: lambda { @tag_num.frame = temp}, completion: lambda {
-			|finished| 
-
-			header_txt = @header.text.match(/^\w+\s+/)[0].strip
-			clearSubViews unless header_txt == "CAR"
-
-			@tag_num.userInteractionEnabled = false
-
-			case header_txt
-			when "PDL"
-				@builder.buildPDL(self, current_text)
-			when "PUL"
-				@builder.buildPUL(self, current_text)
-			when "PMV"
-				@builder.buildPMV(self, current_text)
-			when "PCT"
-				@builder.buildPCT(self, current_text)
-			when "PLO"
-				@builder.buildPLO(self, current_text)
-			when "Skid"#"Skid Label"
-				@builder.buildSkidLabel(self, current_text)
-			when "TPT"
-				@builder.buildTPT(self, current_text)
-			when "GLB"
-				@builder.buildGLB(self, current_text)
-			when "POR"
-				poValidate(@po_number.text)
-			when "CAR"
-				if @line_number.text.empty?
-					App.alert "You must enter a line number."
-					@line_number.becomeFirstResponder
+		tag = !@header.text.downcase.match(/plo/).nil? ? @new_tag_num.text : @tag_num.text
+		current_text = !@header.text.downcase.match(/plo/).nil? ? @new_tag_num.text : @tag_num.text
+		APIRequest.new.get('tag_details', {tag: tag, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+			# unless result["success"] == false
+				if  @header.text.match(/^\w+\s+/)[0].strip == "POR" || @header.text.match(/^\w+\s+/)[0].strip == "SHP" || @header.text.match(/^\w+\s+/)[0].strip == "CAR" || @header.text.match(/^\w+\s+/)[0].strip == "SKD"
+					temp = self.view.frame
+					temp.origin.x = -1000
+					UIView.animateWithDuration(0.5, delay: 0.0, options: UIViewAnimationCurveEaseOut, animations: lambda { @tag_num.frame = temp}, completion: lambda {
+						|finished| 
+						header_txt = @header.text.match(/^\w+\s+/)[0].strip
+						clearSubViews unless header_txt == "CAR"
+			
+						@tag_num.userInteractionEnabled = false
+			
+						case header_txt
+						when "POR"
+							poValidate(@po_number.text)
+						when "CAR"
+							line_number = @line_number.class == String ? @line_number : @line_number.text
+							if line_number.empty?
+								App.alert "You must enter a line number."
+								@line_number.becomeFirstResponder unless @line_number.class == String
+							else
+								clearSubViews
+								@builder.buildCAR2(self, current_text)
+							end
+						when "SKD"
+							@builder.buildSKD2(self, current_text)
+						when "SHP"
+							@builder.buildSHP2(self, current_text)
+						else
+							@builder.buildGenericView(self, current_text)
+						end
+					})
+				elsif result["result"]["ttsite"] == UIApplication.sharedApplication.delegate.site || (@header.text.match(/^\w+\s+/)[0].strip == "PLO" && result["result"]["ttsite"].empty?)
+					temp = self.view.frame
+					temp.origin.x = -1000
+					UIView.animateWithDuration(0.5, delay: 0.0, options: UIViewAnimationCurveEaseOut, animations: lambda { @tag_num.frame = temp}, completion: lambda {
+						|finished| 
+						header_txt = @header.text.match(/^\w+\s+/)[0].strip
+						clearSubViews unless header_txt == "CAR"
+			
+						@tag_num.userInteractionEnabled = false
+			
+						case header_txt
+						when "PDL"
+							@builder.buildPDL(self, current_text)
+						when "PUL"
+							@builder.buildPUL(self, current_text)
+						when "PMV"
+							@builder.buildPMV(self, current_text)
+						when "PCT"
+							@builder.buildPCT(self, current_text)
+						when "PLO"
+							@builder.buildPLO(self, current_text)
+						when "Skid"#"Skid Label"
+							@builder.buildSkidLabel(self, current_text)
+						when "TPT"
+							@builder.buildTPT(self, current_text)
+						when "GLB"
+							@builder.buildGLB(self, current_text)
+						else
+							@builder.buildGenericView(self, current_text)
+						end
+					})
 				else
-					clearSubViews
-					@builder.buildCAR2(self, current_text)
+					App.alert("You cannot access site data from a different site.")
 				end
-			when "SKD"
-				@builder.buildSKD2(self, current_text)
-			else
-				@builder.buildGenericView(self, current_text)
-			end
-		})
+			# end
+		end
 	end
 
 	def functionStartingPoint(header)
-		clearSubViews
-		case header
+		begin
+			clearSubViews do 
+				case header
 
-		when "GLB"
-			@builder.buildGLB(self, nil)
-		when "TPT"
-			@builder.buildTPT(self, nil)
-		when "Skid"
-			@builder.buildSkidLabel(self, nil)
-		when "POR"
-			@builder.buildPOR1(self, nil)
-		when "SKD"
-			@builder.buildSKD1(self, nil)
-		when "CAR"
-			@builder.buildCAR1(self, nil)
-	  else
-			@builder.buildStartingPoint(self)
+				when "GLB"
+					@builder.buildGLB(self, nil)
+				when "TPT"
+					@builder.buildTPT(self, nil)
+				when "Skid"
+					@builder.buildSkidLabel(self, nil)
+				when "POR"
+					@builder.buildPOR1(self, nil)
+				when "SKD"
+					@builder.buildSKD1(self, nil)
+				when "CAR"
+					@builder.buildCAR1(self, nil)
+				when "SHP"
+					@builder.buildSHP1(self, nil)
+				when "BKF"
+					@builder.buildBKF(self, nil)
+			  else
+					@builder.buildStartingPoint(self)
+				end
+			end
+		rescue
 		end
 	end
 
@@ -297,7 +404,7 @@ class MainMenuController < UIViewController
 		@from_site.text = UIApplication.sharedApplication.delegate.site
 		@to_site.text = UIApplication.sharedApplication.delegate.site
 		APIRequest.new.get('plo_next_pallet', {}) do |result|
-			@tag_num.text = result["result"]
+			@new_tag_num.text = result["result"]
 			@builder.new_pallet = true
 			@item_num.becomeFirstResponder
 			#stopSpinner
@@ -332,19 +439,30 @@ class MainMenuController < UIViewController
 		end
 	end
 
-	def clearSubViews
+	def clearSubViews(&block)
 		self.navigationItem.rightBarButtonItem = nil
 		self.view.subviews.each do |subview|
 			subview.removeFromSuperview
 		end
+		block.call unless block.nil?
 	end
 
 	def poValidate(po_number)
+		@locations_by_item = Hash.new
 		APIRequest.new.get("po_details", {po_number: @po_number.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, type: "po_details"}) do |result|
 		  if result["success"] 
+		  	result["result"]["Locs"].each do |locs|
+		  		if @locations_by_item[locs["ttpart"]].nil?
+		  			@locations_by_item[locs["ttpart"]] = [locs["ttlocs"]]
+		  		else
+		  			@locations_by_item[locs["ttpart"]] << locs["ttlocs"]
+		  		end
+		  	end
+
+		  	
 		  	@po_items = result["result"]["Lines"]
 		  	@po_items_count = result["result"]["Lines"].count
-		  	@builder.buildPOR2(self, {po_items: @po_items, items_count: @po_items_count, locations: result["result"]["Locs"]})
+		  	@builder.buildPOR2(self, {po_items: @po_items, items_count: @po_items_count, locations: @locations_by_item})
 			else
 				@builder.buildPOR1(self, nil)
 				@builder.updateAlertArea("failure", result["result"])
@@ -476,20 +594,38 @@ class MainMenuController < UIViewController
 
   			position = 60
   			result["INFO"].each do |info|
-  				position = position += 60
-	  			loc = UILabel.new
-	  			loc.frame = [[20,position],[@popup.frame.size.width / 2, 50]]
-	  			loc.color = UIColor.whiteColor
-	  			loc.text = "Item Location: #{info['ttloc']}"
-
-	  			qty_label = UILabel.new
-	  			qty_label.frame = [[@popup.frame.size.width / 2, position], [@popup.frame.size.width / 2, 50]]
-	  			qty_label.color = UIColor.whiteColor
-	  			qty_label.text = "Location Qty: #{info['ttqtyloc'].to_i}"
-	  			@popup.addSubview(loc)
-	  			@popup.addSubview(qty_label)
-	  			loc = nil
-	  			qty_label = nil
+  				unless info['ttqtyloc'].to_i < 0
+  					position = position += 60
+	  				loc = UILabel.new
+	  				loc.frame = [[10,position],[@popup.frame.size.width / 3, 50]]
+	  				loc.color = UIColor.whiteColor
+	  				loc.text = "Location: #{info['ttloc']}"
+	
+	  				qty_label = UILabel.new
+	  				qty_label.frame = [[(@popup.frame.size.width / 3) + 5, position], [@popup.frame.size.width / 3, 50]]
+	  				qty_label.color = UIColor.whiteColor
+	  				qty_label.text = "Qty: #{info['ttqtyloc'].to_i}"
+	
+	  				tag = UILabel.new
+	  				tag.frame = [[(@popup.frame.size.width / 3) + 100 , position], [(@popup.frame.size.width / 3), 50]]
+	  				tag.color = UIColor.whiteColor
+	  				tag.text = "Tag: #{info['tttag']}"
+	
+	  				status = UILabel.new
+	  				status.frame = [[(@popup.frame.size.width / 3) + 240 , position], [(@popup.frame.size.width / 3), 50]]
+	  				status.color = UIColor.whiteColor
+	  				status.text = "Status: #{info['ttstatus']}"
+	  				
+	  				@popup.addSubview(loc)
+	  				@popup.addSubview(qty_label)
+	  				@popup.addSubview(tag)
+	  				@popup.addSubview(status)
+	
+	  				loc = nil
+	  				qty_label = nil
+	  				tag = nil
+	  				status = nil
+	  			end
 	  		end
 
   			@popup.contentSize = CGSizeMake(@popup.frame.size.width - 440, position+50)
@@ -498,8 +634,6 @@ class MainMenuController < UIViewController
 
   			header = nil
   			desc = nil
-		  elsif result.failure? 
-		  	p result.error.localizedDescription
 		  else
 		  	App.alert("Item not found")
 		  end

@@ -1,6 +1,7 @@
 class LoginController < UIViewController
 
 	def viewDidLoad
+		
 		self.title = 'Welcome To Cardinal'
 		self.view.backgroundColor = UIColor.whiteColor
 		self.automaticallyAdjustsScrollViewInsets = false
@@ -20,17 +21,25 @@ class LoginController < UIViewController
 	def login
 		if Validator.textfields_complete?([@username, @password, @site_num, @printer])
 			showSpinner
-			APIRequest.new.get("login", {username: @username.text, password: @password.text, site_num: @site_num.text, printer: @printer.text}) do |result|
-				if result["success"] == true
-					stopSpinner
-					UIApplication.sharedApplication.delegate.username = @username.text
-					UIApplication.sharedApplication.delegate.printer = @printer.text
-					UIApplication.sharedApplication.delegate.site = @site_num.text
+			APIRequest.new.get("validate_printer", {user: @username.text, password: @password.text, site: @site_num.text, printer: @printer.text}) do |result|
+				if result["success"]
+					APIRequest.new.get("login", {username: @username.text, password: @password.text, site_num: @site_num.text, printer: @printer.text}) do |result|
+						if result["success"] == true && result['site_valid']
+							stopSpinner
+							UIApplication.sharedApplication.delegate.username = @username.text
+							UIApplication.sharedApplication.delegate.printer = @printer.text
+							UIApplication.sharedApplication.delegate.site = @site_num.text
+							UIApplication.sharedApplication.delegate.user_roles = result["user_roles"]
 
-					self.navigationController.pushViewController(MainMenuController.alloc.initWithNibName(nil, bundle:nil), animated: true)
+							self.navigationController.pushViewController(MainMenuController.alloc.initWithNibName(nil, bundle:nil), animated: true)
+						else
+							stopSpinner
+							App.alert("#{result["result"]}")
+						end
+					end
 				else
 					stopSpinner
-					App.alert("#{result["result"]}")
+					App.alert("Printer is invalid. Please enter a valid printer.")
 				end
 			end
 		else
