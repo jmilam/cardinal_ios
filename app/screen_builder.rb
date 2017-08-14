@@ -1404,11 +1404,26 @@ class ScreenBuilder < UIViewController
 							end
 						end
 
+						@item_num.userInteractionEnabled = false
 						@item_num.text = result["result"]["ttitem"]
 						@from_site.text = result["result"]["ttsite"]
 						@to_site.text = result["result"]["ttsite"]
 						@current_qty.text = "Current tag qty: #{result["result"]["ttqtyloc"].to_i}"
 						@current_item.text = "#{result["result"]["ttdesc1"]}"
+
+						@to_loc.userInteractionEnabled = true
+
+						APIRequest.new.get('item_location', {item_num: @item_num.text, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+					  	default_location = result["Location"]
+
+					  	if @new_pallet
+				  			@to_loc.userInteractionEnabled = true
+	  						@from_loc.userInteractionEnabled = true
+	  					else
+	  						@from_loc.userInteractionEnabled = true
+	  					end
+				  		@from_loc.text = default_location
+					  end
 					else
 						@to_loc.userInteractionEnabled = true
 					end
