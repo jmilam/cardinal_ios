@@ -263,6 +263,7 @@ class ScreenBuilder < UIViewController
 				layout.horizontal "|-left_margin-[carton_num_label(==half_width)][carton_number(==half_width)]-10-|"
 			end
 		elsif @header.text.downcase.match(/plo/) != nil
+			@new_tag_num.userInteractionEnabled = true
 			@tag_num_group = create_textfield_group(@new_tag_num_label, @new_tag_num, viewController) 
 			@new_tag_num.becomeFirstResponder
 			Motion::Layout.new do |layout|
@@ -274,7 +275,7 @@ class ScreenBuilder < UIViewController
 				layout.horizontal "|-0-[alert_area(==400)]-0-|"
 				layout.horizontal "|-0-[table(==400)]-[header]-10-|"
 				layout.horizontal "|-left_margin-[header]-10-|"
-				layout.horizontal "|-left_margin-[tag_num_group(==half_width)]-[new_button(==half_width)]-10-|"
+				layout.horizontal "|-left_margin-[new_button(==half_width)]-[tag_num_group(==half_width)]-10-|"
 			end
 		else
 			@tag_num_label.text = 'Enter Tag Number'
@@ -298,8 +299,10 @@ class ScreenBuilder < UIViewController
 		viewController.stopSpinner
 		@qty_label.text = "Updated Qty"
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		@new_tag_num.text = current_text
-		@new_tag_num.becomeFirstResponder
+		@new_tag_num.userInteractionEnabled = false
+		@qty.becomeFirstResponder
 		disableItemNumField
 
 		@tag_num_group = create_textfield_group(@new_tag_num_label, @new_tag_num, viewController) 
@@ -326,9 +329,10 @@ class ScreenBuilder < UIViewController
 	def buildPDL(viewController, current_text)
 		viewController.stopSpinner
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		@new_tag_num.becomeFirstResponder
 		@new_tag_num.text = current_text
-		@from_loc.userInteractionEnabled = false
+		@new_tag_num.userInteractionEnabled = false
 		disableItemNumField
 
 		@tag_num_group = create_textfield_group(@new_tag_num_label, @new_tag_num, viewController) 
@@ -348,25 +352,31 @@ class ScreenBuilder < UIViewController
 		end
 
 		@tag_num_group, @item_num_group, @from_loc_group, @to_loc_group = nil, nil, nil, nil
+		@from_loc.userInteractionEnabled = false
+		@to_loc.userInteractionEnabled = true
 		viewController
 	end
 
 	def buildPLO(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		@new_tag_num.text = current_text
 
 		@qty.placeholder = "Qty"
+		@qty_label.text = "Quantity"
 		@from_site.text = UIApplication.sharedApplication.delegate.site
 		@to_site.text = UIApplication.sharedApplication.delegate.site
 		@from_site.userInteractionEnabled = false
 		@to_site.userInteractionEnabled = false
 		@to_loc.userInteractionEnabled = false
+		@new_tag_num.userInteractionEnabled = false
 		enableItemNumField
 		@item_num.becomeFirstResponder
 
+		@blank_space = createLabel
 		@qty_group = create_textfield_group(@qty_label, @qty, viewController)
 		@tag_num_group = create_textfield_group(@new_tag_num_label, @new_tag_num, viewController) 
-		@item_num_group = create_textfield_group(@item_num_label, @item_num, viewController)
+		@item_num_group = create_textfield_group(@item_num_label, @item_num, viewController, true)
 		@from_loc_group = create_textfield_group(@from_loc_label, @from_loc, viewController) 
 		@to_loc_group = create_textfield_group(@to_loc_label, @to_loc, viewController) 
 		@from_site_group = create_textfield_group(@from_site_label, @from_site, viewController) 
@@ -374,11 +384,11 @@ class ScreenBuilder < UIViewController
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
-			layout.subviews "table" => @table, "header" => @header, "item_num_group" => @item_num_group, "tag_num_group" => @tag_num_group, "qty_group" => @qty_group, "current_qty" => @current_qty, "current_item" => @current_item, "from_loc_group" => @from_loc_group, "to_loc_group" => @to_loc_group, "from_site_group" => @from_site_group, "to_site_group" => @to_site_group, "new_button" => @new_button, "alert_area" => @alert_area
+			layout.subviews "table" => @table, "header" => @header, "blank_space" => @blank_space, "item_num_group" => @item_num_group, "tag_num_group" => @tag_num_group, "qty_group" => @qty_group, "current_qty" => @current_qty, "current_item" => @current_item, "from_loc_group" => @from_loc_group, "to_loc_group" => @to_loc_group, "from_site_group" => @from_site_group, "to_site_group" => @to_site_group, "new_button" => @new_button, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2) - 20
-			layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[tag_num_group(==height)][new_button(==height)]-margin-[item_num_group(==height)][qty_group(==height)]-margin-[from_site_group(==height)][to_site_group(==height)]-margin-[from_loc_group(==height)][to_loc_group(==height)]-margin-[current_item(==height)][current_qty(==height)]-(>=10)-|"
-			layout.horizontal "|-left_margin-[tag_num_group(==half_width)]-[new_button(==half_width)]-10-|"
-			layout.horizontal "|-left_margin-[item_num_group(==half_width)]-[qty_group(==half_width)]-10-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[item_num_group(==height)]-[qty_group(==height)][tag_num_group(==height)]-margin-[from_site_group(==height)][to_site_group(==height)]-margin-[from_loc_group(==height)][to_loc_group(==height)]-margin-[current_item(==height)][current_qty(==height)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[item_num_group]-10-|"
+			layout.horizontal "|-left_margin-[qty_group(==half_width)]-[tag_num_group(==half_width)]-10-|"
 			layout.horizontal "|-left_margin-[from_site_group(==half_width)]-[to_site_group(==half_width)]-10-|"
 			layout.horizontal "|-left_margin-[from_loc_group(==half_width)]-[to_loc_group(==half_width)]-10-|"
 			layout.horizontal "|-left_margin-[current_item(==half_width)]-[current_qty(==half_width)]-10-|"
@@ -391,9 +401,12 @@ class ScreenBuilder < UIViewController
 	def buildPMV(viewController, current_text)
 		viewController.stopSpinner
 		@from_loc.userInteractionEnabled = false
+		@to_loc.userInteractionEnabled = true
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		@new_tag_num.text = current_text
-		@new_tag_num.becomeFirstResponder
+		@new_tag_num.userInteractionEnabled = false
+		@to_loc.becomeFirstResponder
 		disableItemNumField
 
 		@tag_num_group = create_textfield_group(@new_tag_num_label, @new_tag_num, viewController) 
@@ -419,8 +432,11 @@ class ScreenBuilder < UIViewController
 	def buildPUL(viewController, current_text)
 		viewController.stopSpinner
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		@from_loc.userInteractionEnabled = false
+		@to_loc.userInteractionEnabled = true
 		@new_tag_num.text = current_text
+		@new_tag_num.userInteractionEnabled = false
 		@new_tag_num.becomeFirstResponder
 		disableItemNumField
 
@@ -452,6 +468,7 @@ class ScreenBuilder < UIViewController
 		@tag_num.placeholder = ''
 		@tag_num_label.text = 'Enter Tag Number'
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		@tag_num.becomeFirstResponder
 
 		Motion::Layout.new do |layout|
@@ -467,6 +484,7 @@ class ScreenBuilder < UIViewController
 	def buildGLB(viewController, current_text)
 		@tag_num_label.text = "Enter Label Wording..."
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		@remarks.becomeFirstResponder
 
 		Motion::Layout.new do |layout|
@@ -481,6 +499,7 @@ class ScreenBuilder < UIViewController
 
 	def buildSkidLabel(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		@skid_num.becomeFirstResponder
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
@@ -494,7 +513,7 @@ class ScreenBuilder < UIViewController
 
 	def buildPOR1(viewController, current_text)
  	 	viewController.navigationItem.rightBarButtonItem = @nextBtn
-
+		@po_number.userInteractionEnabled = true
 		@po_number.becomeFirstResponder
 
 		Motion::Layout.new do |layout|
@@ -512,7 +531,9 @@ class ScreenBuilder < UIViewController
 
 	def buildPOR2(viewController, data_hash)
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 
+		@po_number.userInteractionEnabled = false
 		@data_container = UIScrollView.new
 
 		@table_header = UIView.new
@@ -581,7 +602,7 @@ class ScreenBuilder < UIViewController
 
 		position = 0
 		data_hash[:po_items].each do |data|
-			@por_loc = data_hash[:locations].values.flatten.uniq
+			@por_loc = data_hash[:locations].uniq
 			new_view = UIView.new
 			new_view.frame = [[0,position],[600,100]]
 
@@ -623,7 +644,7 @@ class ScreenBuilder < UIViewController
 			label1.text = data["ttline"].to_s
 			label2.text = data["ttitem"]
 			# p data_hash[:locations][data["ttitem"]]
-			label3.text = data_hash[:locations][data["ttitem"]][0]
+			label3.text = data_hash[:default_locations][data["ttitem"]][0]
 			label5.text = "1"
 			label6.text = "Open Qty: " + data["ttqtyopen"].to_i.to_s 
 
@@ -653,10 +674,11 @@ class ScreenBuilder < UIViewController
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
-			layout.subviews "table" => @table, "header" => @header, "table_header" => @table_header, "data_container" => @data_container, "alert_area" => @alert_area
-			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410
+			layout.subviews "table" => @table, "header" => @header, "po_label" => @po_label, "po_number" => @po_number, "table_header" => @table_header, "data_container" => @data_container, "alert_area" => @alert_area
+			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410,  "half_width" => ((viewController.view.frame.size.width - 410) / 2)
 			layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
-			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[table_header(==height)]-[data_container(==300)]-(>=10)-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[po_label(==height)][po_number(==height)]-[table_header(==height)]-[data_container(==300)]-(>=10)-|"
+			layout.horizontal "|-left_margin-[po_label(==half_width)][po_number(==half_width)]-10-|"
 			layout.horizontal "|-left_margin-[table_header]-10-|"
 			layout.horizontal "|-left_margin-[data_container]-10-|"
 			layout.horizontal "|-0-[table(==400)]-[header]-10-|"
@@ -688,6 +710,7 @@ class ScreenBuilder < UIViewController
 
 	def buildCAR2(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		viewController.view.nextResponder.showSpinner
 		@so_number.userInteractionEnabled = false
 		@line_number.userInteractionEnabled = false
@@ -885,6 +908,7 @@ class ScreenBuilder < UIViewController
 
 	def buildSKD2(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		viewController.view.nextResponder.showSpinner
 
 		@detail_data = UIScrollView.new
@@ -974,7 +998,6 @@ class ScreenBuilder < UIViewController
 			layout.horizontal "|-0-[table(==400)]-[header]-10-|"
 			layout.horizontal "|-left_margin-[header]-10-|"
 		end
-
 	end
 
 	def buildSHP2(viewController, current_text)
@@ -1175,6 +1198,7 @@ class ScreenBuilder < UIViewController
 
 	def buildBKF(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		@item_num.becomeFirstResponder
 		@item_num.userInteractionEnabled = true
 		@qty_label.text = "Qty"
@@ -1316,13 +1340,6 @@ class ScreenBuilder < UIViewController
 		@item_num.userInteractionEnabled = true
 	end
 
-	def initUIPickerView(view)
-		@picker = UIPickerView.new
-		@picker.frame = CGRectMake(20, 100, 260, 120)
-		@picker.delegate = view
-		@picker.dataSource = view
-	end
-
 	def addCarton(gesture)
 		@skid_num.resignFirstResponder
 		if @cartons.include?(gesture.view.subviews[0].text)
@@ -1420,9 +1437,12 @@ class ScreenBuilder < UIViewController
 				  			@to_loc.userInteractionEnabled = true
 	  						@from_loc.userInteractionEnabled = true
 	  					else
-	  						@from_loc.userInteractionEnabled = true
+	  						unless @header.text.match(/PLO/).nil?
+		  						@to_loc.userInteractionEnabled = false 
+		  						@from_loc.userInteractionEnabled = true
+		  					end
 	  					end
-				  		@from_loc.text = default_location
+				  		@from_loc.text = default_location unless @from_loc.text != ""
 					  end
 					else
 						@to_loc.userInteractionEnabled = true
@@ -1459,7 +1479,7 @@ class ScreenBuilder < UIViewController
   					else
   						@from_loc.userInteractionEnabled = true
   					end
-			  		@from_loc.text = default_location
+			  		# @from_loc.text = default_location
 			  	end
 			  end
 			end

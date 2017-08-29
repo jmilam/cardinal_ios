@@ -1,6 +1,9 @@
 class MainMenuController < UIViewController
 
 	def viewDidLoad
+
+		@qad_env = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleDisplayName") == "Cardinal" ? "qadprod" : "qadnix"
+		@qad_api = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleDisplayName") == "Cardinal" ? "prodapi" : "testapi"
 		self.title = 'Cardinal Functions'
 		self.view.backgroundColor = UIColor.whiteColor
 		self.automaticallyAdjustsScrollViewInsets = false
@@ -14,17 +17,16 @@ class MainMenuController < UIViewController
 		button = nil
 		@po_items_count = 0
 
-		# if UIApplication.sharedApplication.delegate.user_roles == "_ShipSalesOrders"
-			@headers = {"Inventory Control" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)", "POR (Purchase Order Receipt)"], "Manufacturing" => ["BKF (Backflush)"], "Label Printing" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Distribution" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
-		# else
-		# 	@headers = {"Inventory Control" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)", "POR (Purchase Order Receipt)"], "Manufacturing" => ["BKF (Backflush)"], "Label Printing" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid Label Reprint"], "Distribution" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)"]}
-		# end
-		
-		@to_locations = ["","2110", "2400", "SAMPLE"]
+		@headers = {"Inventory Control" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)", "POR (Purchase Order Receipt)"], "Manufacturing" => ["BKF (Backflush)"], "Label Printing" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Distribution" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
 
-		#Sets initial Screen View and also gets initial accessor values from ScreenBuilder Model
+		setInitialVariableValues
+
+		super
+
+	end
+
+	def setInitialVariableValues
 		@builder = ScreenBuilder.alloc.initWithView(self)
-		@builder.initUIPickerView(self)
 		@builder.buildMainMenu(self)
 		@cell_bg = @builder.cell_bg
 		@item_num = @builder.item_num
@@ -42,7 +44,6 @@ class MainMenuController < UIViewController
 		@remarks = @builder.remarks
 		@lot = @builder.lot
 		@po_number = @builder.po_number
-		# @label_count = @builder.label_count
 		@carton_num = @builder.carton_item
 		@so_num = @builder.so_number
 		@po_items = nil
@@ -51,9 +52,6 @@ class MainMenuController < UIViewController
 		@line_number = @builder.line_number
 		@prod_line = @builder.prod_line
 		@user_initials = @builder.user_initials
-
-		super
-
 	end
 
 	def submit
@@ -66,7 +64,7 @@ class MainMenuController < UIViewController
 				stopSpinner
 			end
 		elsif @header.text.downcase.match(/^tpt/) != nil
-			APIRequest.new.get("print_label", {tag: @tag_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site, type: "print_label"}) do |result|
+			APIRequest.new.get("print_label", {tag: @tag_num.text, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site, trans_type: "tpt", type: "print_label"}) do |result|
 				@builder.updateAlertArea
 				stopSpinner
 			end
@@ -177,11 +175,11 @@ class MainMenuController < UIViewController
 							@data.subviews.each do |subview|
 								if subview.class == UIView
 									line = subview.subviews[0].text.match(/\d+/)
-									unless subview.subviews[2].text == "" && subview.subviews[3].text == ""
-										if subview.subviews[4].text.to_i <= 0
+
+									unless subview.subviews[2].text == "" || subview.subviews[3].text == ""
+										if subview.subviews[3].text.to_i < 0
 											stopSpinner
 											return @builder.updateAlertArea('failure', "You cannot have a negative quantity.\n Please check the qtys you entered \n and Submit the transaction again.")
-											
 										else
 											lines << line[0] unless line.nil?
 											locations << subview.subviews[2].text
@@ -191,20 +189,50 @@ class MainMenuController < UIViewController
 									end
 								end
 							end
-							
+
 							label_count = "1"
 							APIRequest.new.get(@header.text, {type: "por", po_num: @po_number.text, locations: locations, qtys: qtys, multipliers: multipliers, lines: lines, label_count: "#{label_count}", user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site:  UIApplication.sharedApplication.delegate.site.downcase}) do |result|
+
+								# self.navigationItem.rightBarButtonItem.enabled = true
+								po_text = @po_number.text
+
+								# clearSubViews
+
 								if result["success"]
-									@po_number.text = ""
-									clearSubViews
-									@builder.buildPOR1(self, nil)
-									@builder.updateAlertArea
+									success_response = nil
+
+									loopPORcheck(result)
+									# AFMotion::JSON.get("http://qadnix.endura.enduraproducts.com/cgi-bin/testapi/xxapiporkey.p?key=#{result["unique_key"]}&userid=#{UIApplication.sharedApplication.delegate.username.downcase}") do |result|
+									# 	p result
+									# 	case result.object["Status"].downcase
+									# 	when "wait"
+									# 		p result
+									# 		sleep 5
+									# 	when "error"
+									# 		self.navigationItem.rightBarButtonItem.enabled = true
+									# 		@builder.updateAlertArea("failure", "#{result.object["Error"]}")
+									# 		stopSpinner
+
+									# 	else
+									# 		p result.object
+									# 		self.navigationItem.rightBarButtonItem.enabled = true
+
+									# 		clearSubViews
+									# 		@po_number.text = po_text
+									# 		poValidate(@po_number.text)
+									# 		po_text = nil
+
+									# 		stopSpinner
+									# 	end
+									# end
+
+									# p "http://qadnix.endura.enduraproducts.com/cgi-bin/testapi/xxapiporkey.p?key=#{result[:unique_key]}&userid=#{UIApplication.sharedApplication.delegate.username.downcase}"
+									# @builder.updateAlertArea
 								else
 									@builder.updateAlertArea("failure", "#{result["result"]}")
+									stopSpinner
 								end
-								stopSpinner
 							end
-							
 						rescue => error
 							stopSpinner
 							@builder.updateAlertArea("failure", error)
@@ -252,7 +280,7 @@ class MainMenuController < UIViewController
 				  						cancelAction = UIAlertAction.actionWithTitle("No Thanks", style: UIAlertActionStyleDestructive, handler: lambda { |result| 
 				  																																																															functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
 				  																																																														})
-				  						printAction = UIAlertAction.actionWithTitle("Yes, Please", style: UIAlertActionStyleDefault, handler: lambda {|reuslt| APIRequest.new.get("print_label", {tag: tag_num, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site , type: "print_label"}) {|result| functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)}})
+				  						printAction = UIAlertAction.actionWithTitle("Yes, Please", style: UIAlertActionStyleDefault, handler: lambda {|reuslt| APIRequest.new.get("print_label", {tag: tag_num, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site, trans_type: "#{@header.text.downcase}", type: "print_label"}) {|result| functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)}})
 				  						alert.addAction(cancelAction)
 				  						alert.addAction(printAction)
 				  						self.presentViewController(alert, animated: true, completion: nil)
@@ -276,7 +304,7 @@ class MainMenuController < UIViewController
 				  						if @header.text.downcase.match(/pct/) != nil || @header.text.downcase.match(/plo/) != nil
 				  							alert = UIAlertController.alertControllerWithTitle("Would you like to print a new label?", message:  "",preferredStyle: UIAlertControllerStyleAlert)
 				  							cancelAction = UIAlertAction.actionWithTitle("No Thanks", style: UIAlertActionStyleDestructive, handler: lambda { |result| functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)})
-				  							printAction = UIAlertAction.actionWithTitle("Yes, Please", style: UIAlertActionStyleDefault, handler: lambda {|reuslt| APIRequest.new.get("print_label", {tag: tag_num, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site, type: "print_label"}) {|result| functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)}})
+				  							printAction = UIAlertAction.actionWithTitle("Yes, Please", style: UIAlertActionStyleDefault, handler: lambda {|reuslt| APIRequest.new.get("print_label", {tag: tag_num, printer:  UIApplication.sharedApplication.delegate.printer.downcase, user_id: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site, trans_type: "#{@header.text.downcase}", type: "print_label"}) {|result| functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)}})
 				  							alert.addAction(cancelAction)
 				  							alert.addAction(printAction)
 				  							self.presentViewController(alert, animated: true, completion: nil)
@@ -298,6 +326,7 @@ class MainMenuController < UIViewController
 	end
 
 	def next
+		self.navigationItem.rightBarButtonItem.enabled = true
 		tag = !@header.text.downcase.match(/plo/).nil? ? @new_tag_num.text : @tag_num.text
 		current_text = !@header.text.downcase.match(/plo/).nil? ? @new_tag_num.text : @tag_num.text
 		APIRequest.new.get('tag_details', {tag: tag, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
@@ -422,6 +451,7 @@ class MainMenuController < UIViewController
 	end
 
 	def showSpinner
+		self.navigationItem.rightBarButtonItem.enabled = false unless self.navigationItem.rightBarButtonItem.nil?
 		@spinner = UIActivityIndicatorView.alloc.initWithActivityIndicatorStyle(UIActivityIndicatorViewStyleWhiteLarge)
 		@spinner.color = UIColor.blueColor
 		@spinner.frame = [[self.view.frame.size.width / 2,self.view.frame.size.height / 3],[100,100]]
@@ -449,8 +479,14 @@ class MainMenuController < UIViewController
 
 	def poValidate(po_number)
 		@locations_by_item = Hash.new
+		@locations = Array.new
+
 		APIRequest.new.get("po_details", {po_number: @po_number.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, type: "po_details"}) do |result|
 		  if result["success"] 
+		  	result["result"]["Loclist"].each do |locs|
+		  		@locations << locs["ttloclist"]
+		  	end
+
 		  	result["result"]["Locs"].each do |locs|
 		  		if @locations_by_item[locs["ttpart"]].nil?
 		  			@locations_by_item[locs["ttpart"]] = [locs["ttlocs"]]
@@ -462,7 +498,7 @@ class MainMenuController < UIViewController
 		  	
 		  	@po_items = result["result"]["Lines"]
 		  	@po_items_count = result["result"]["Lines"].count
-		  	@builder.buildPOR2(self, {po_items: @po_items, items_count: @po_items_count, locations: @locations_by_item})
+		  	@builder.buildPOR2(self, {po_items: @po_items, items_count: @po_items_count, locations: @locations, default_locations: @locations_by_item})
 			else
 				@builder.buildPOR1(self, nil)
 				@builder.updateAlertArea("failure", result["result"])
@@ -473,6 +509,35 @@ class MainMenuController < UIViewController
 	def closePopup
 		@popup.removeFromSuperview
 		@popup = nil
+	end
+
+	def loopPORcheck(result)
+		original_request =  result
+		po_text = @po_number.text
+
+		AFMotion::JSON.get("http://#{@qad_env}.endura.enduraproducts.com/cgi-bin/#{@qad_api}/xxapiporkey.p?key=#{result["unique_key"]}&userid=#{UIApplication.sharedApplication.delegate.username.downcase}") do |result|
+
+			case result.object["Status"].downcase
+			when "wait" 
+				sleep 5
+			when "error"
+				self.navigationItem.rightBarButtonItem.enabled = true
+				@builder.updateAlertArea("failure", "#{result.object["Error"]}")
+				stopSpinner
+				break
+			else
+				self.navigationItem.rightBarButtonItem.enabled = true
+
+				clearSubViews
+				@po_number.text = po_text
+				poValidate(@po_number.text)
+				po_text = nil
+
+				stopSpinner
+				break
+			end
+			loopPORcheck(original_request)
+		end
 	end
 	
 	#Delegate Methods
@@ -541,23 +606,6 @@ class MainMenuController < UIViewController
 			functionStartingPoint(@header.text.match(/^\w+\s+/)[0].strip)
 		else
 		end
-	end
-
-	def pickerView(pickerView, numberOfRowsInComponent: componenent)
-		@to_locations.count
-	end
-
-	def pickerView(pickerView, titleForRow: row, forComponent: componenent)
-		@to_locations[row]
-	end
-
-	def numberOfComponentsInPickerView(pickerView)
-		1
-	end
-
-	def pickerView(pickerView, didSelectRow: row, inComponent: componenent)
-		@to_loc.text = "#{@to_locations[row]}"
-		@to_loc.resignFirstResponder	
 	end
 
 	def searchBarSearchButtonClicked(searchBar)
