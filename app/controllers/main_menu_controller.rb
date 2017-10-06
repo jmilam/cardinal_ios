@@ -229,6 +229,8 @@ class MainMenuController < UIViewController
 									# p "http://qadnix.endura.enduraproducts.com/cgi-bin/testapi/xxapiporkey.p?key=#{result[:unique_key]}&userid=#{UIApplication.sharedApplication.delegate.username.downcase}"
 									# @builder.updateAlertArea
 								else
+									App.alert(result)
+									self.navigationItem.rightBarButtonItem.enabled = true
 									@builder.updateAlertArea("failure", "#{result["result"]}")
 									stopSpinner
 								end
@@ -266,7 +268,14 @@ class MainMenuController < UIViewController
 				  		to_loc = validate_text_presence(@to_loc.text, result["result"]["ttloc"])
 				  		to_site = validate_text_presence(@to_site.text, result["result"]["ttsite"])
 				  		from_site = validate_text_presence(@from_site.text, result["result"]["ttsite"])
-				  		qty = validate_text_presence(@qty.text, result["result"]["ttqtyloc"])
+				  		if (@header.text.downcase.include?("pul") || @header.text.downcase.include?("pct")) && @qty.text.empty?
+				  			App.alert("Must enter a qty")
+				  			self.navigationItem.rightBarButtonItem.enabled = true
+				  			stopSpinner
+				  			break
+				  		else
+				  			qty = validate_text_presence(@qty.text, result["result"]["ttqtyloc"])
+				  		end
 				  		if result["success"] == true 
 				  			result = result["result"]
 	  	
@@ -481,7 +490,9 @@ class MainMenuController < UIViewController
 		@locations_by_item = Hash.new
 		@locations = Array.new
 
+		showSpinner
 		APIRequest.new.get("po_details", {po_number: @po_number.text, user_id: UIApplication.sharedApplication.delegate.username.downcase, type: "po_details"}) do |result|
+		  stopSpinner
 		  if result["success"] 
 		  	result["result"]["Loclist"].each do |locs|
 		  		@locations << locs["ttloclist"]
@@ -516,7 +527,6 @@ class MainMenuController < UIViewController
 		po_text = @po_number.text
 
 		AFMotion::JSON.get("http://#{@qad_env}.endura.enduraproducts.com/cgi-bin/#{@qad_api}/xxapiporkey.p?key=#{result["unique_key"]}&userid=#{UIApplication.sharedApplication.delegate.username.downcase}") do |result|
-
 			case result.object["Status"].downcase
 			when "wait" 
 				sleep 5
@@ -531,6 +541,7 @@ class MainMenuController < UIViewController
 				clearSubViews
 				@po_number.text = po_text
 				poValidate(@po_number.text)
+				@builder.updateAlertArea
 				po_text = nil
 
 				stopSpinner

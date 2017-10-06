@@ -83,6 +83,7 @@ class ScreenBuilder < UIViewController
 
 		@login = UIButton.buttonWithType(UIButtonTypeRoundedRect)
 		@login.setTitle('Login', forState:UIControlStateNormal)
+		@login.accessibilityLabel = 'Login'
 		@login.setTitle('Logging In..', forState:UIControlStateSelected)
 		@login.addTarget(viewController, action: 'login', forControlEvents:UIControlEventTouchUpInside)
 
