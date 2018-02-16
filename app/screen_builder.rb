@@ -30,6 +30,7 @@ class ScreenBuilder < UIViewController
 	attr_reader :effective_date
 	attr_reader :prod_line
 	attr_reader :user_initials
+	attr_reader :distribution_num
 
 	def initWithView(view)
 		@cartons = Array.new
@@ -137,6 +138,7 @@ class ScreenBuilder < UIViewController
 		@prod_line_label = build_group_label('Production Line')
 		@date_label = build_group_label('Effective Date (Default Date: Today)')
 		@user_initials_label = build_group_label('Employee ID')
+		@distribution_num_label = build_group_label('Distribution Number')
 
 		@tag_num = createTextField
 		addSharedAttributes(@tag_num, 'Enter Existing Tag Number')
@@ -208,6 +210,9 @@ class ScreenBuilder < UIViewController
 		@user_initials = createTextField
 		addSharedAttributes(@user_initials, "")
 
+		@distribution_num = createTextField
+		addSharedAttributes(@distribution_num, "Enter Distirbution #")
+
 		@current_qty = createLabel
 		@current_qty.textAlignment = UITextAlignmentCenter
 		@current_item = createLabel
@@ -277,6 +282,22 @@ class ScreenBuilder < UIViewController
 				layout.horizontal "|-0-[table(==400)]-[header]-10-|"
 				layout.horizontal "|-left_margin-[header]-10-|"
 				layout.horizontal "|-left_margin-[new_button(==half_width)]-[tag_num_group(==half_width)]-10-|"
+			end
+		elsif @header.text.downcase.match(/vmi/) != nil
+			@distribution_num.userInteractionEnabled = true
+			@distribution_num.becomeFirstResponder
+
+			Motion::Layout.new do |layout|
+				layout.view viewController.view
+				layout.subviews "table" => @table, "header" => @header, "distribution_num_label" => @distribution_num_label, "distribution_num" => @distribution_num, "alert_area" => @alert_area
+				layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2)
+				layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
+				layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[distribution_num_label(==height)][distribution_num(==height)]-(>=10)-|"
+				layout.vertical "|-#{@nav_bar_height}-[header(==height)]-(>=10)-|"
+				layout.horizontal "|-0-[alert_area(==400)]-0-|"
+				layout.horizontal "|-0-[table(==400)]-[header]-10-|"
+				layout.horizontal "|-left_margin-[header]-10-|"
+				layout.horizontal "|-left_margin-[distribution_num_label(==half_width)][distribution_num(==half_width)]-10-|"
 			end
 		else
 			@tag_num_label.text = 'Enter Tag Number'
@@ -1049,7 +1070,7 @@ class ScreenBuilder < UIViewController
 
 		label4 = UILabel.alloc.initWithFrame([[280,0],[50,30]])
 		label4.numberOfLines = 2
-		label4.text = "Cancel B/O"
+		label4.text = "Qty Scanned"
 		label4.adjustsFontSizeToFitWidth = true
 		label4.textColor = UIColor.whiteColor
 		label4.textAlignment = UITextAlignmentCenter
@@ -1109,7 +1130,7 @@ class ScreenBuilder < UIViewController
 		end	
 
 
-		APIRequest.new.get('ship_lines', {so_number: @so_number.text, user: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+		APIRequest.new.get('ship_lines', {so_number: @so_number.text, user: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site}) do |result|
 			viewController.view.nextResponder.stopSpinner
 
 			if result["success"]
@@ -1143,8 +1164,13 @@ class ScreenBuilder < UIViewController
 					label5.textAlignment = UITextAlignmentCenter
 					label5.text = "#{data["ttqtytoship"].to_i}"
 
-					label6 = UISwitch.alloc.initWithFrame([[280,5],[60,30]])
-					label6.addTarget(self, action: 'flagBO', forControlEvents: UIControlEventValueChanged)
+					label6 = UILabel.alloc.initWithFrame([[280,5],[60,30]])
+					label6.adjustsFontSizeToFitWidth = true
+					label6.textAlignment = UITextAlignmentCenter
+					label6.text = "#{data["ttqtyscan"].to_i}"
+
+					# label6 = UISwitch.alloc.initWithFrame([[280,5],[60,30]])
+					# label6.addTarget(self, action: 'flagBO', forControlEvents: UIControlEventValueChanged)
 
 					label7 = createTextField
 					addSharedAttributes(label7, "Qty")
@@ -1191,6 +1217,7 @@ class ScreenBuilder < UIViewController
 				@detail_data.contentSize = CGSizeMake(self.view.frame.size.width - 440, position)
 				@table_header = nil
 			else
+				p result
 				App.alert result["result"]
 				buildSKD1(viewController, current_text)
 			end
@@ -1220,6 +1247,10 @@ class ScreenBuilder < UIViewController
 			layout.horizontal "|-0-[table(==400)]-[header]-10-|"
 			layout.horizontal "|-left_margin-[header]-10-|"
 		end
+	end
+
+	def buildVMI(viewController, tag_numbers)
+		p "BUILDING VMI"
 	end
 
 	def sharedLayoutParameters(layout, *params)
@@ -1308,11 +1339,18 @@ class ScreenBuilder < UIViewController
 				@text_area.text = "Transaction Successful: \n #{@header.text} \n Item Num: \t #{@item_num.text}\nQty: \t #{@qty.text}\nFrom Loc: \t #{@from_loc.text}\nTo Loc: \t #{@to_loc.text}"
 			end
 			clearTextFields
+		elsif update_type == "update"
+			tag_area = @text_area.text.split("\n").delete_if { |tag| tag == " " }
+			tag_area.delete_at(0) if tag_area.count >= 8
+
+			@text_area.text = "#{tag_area.join("\n").strip} \n #{message}"
 		else
 			@text_area.text = "Transaction Failed: \n #{message}"
 		end
 
-		NSTimer.scheduledTimerWithTimeInterval(5.0, target:self, selector: "clearAlertArea", userInfo: nil, repeats: false)
+		unless update_type == "update"
+			NSTimer.scheduledTimerWithTimeInterval(5.0, target:self, selector: "clearAlertArea", userInfo: nil, repeats: false)
+		end
 	end
 
 	def clearAlertArea
@@ -1373,18 +1411,23 @@ class ScreenBuilder < UIViewController
 		effective_date = effective_date.empty? ? Time.now.strftime('%m/%d/%y') : effective_date
 		cancel_bo = cancel_bo ? "yes" : "no"
 		APIRequest.new.get('shp', {string: "#{so},#{line},#{effective_date},#{cancel_bo},#{ship_qty},#{location},#{tag},", user: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
+	  	tag_scanned = shipped_label.superview.subviews[8].text
 	  	if result["success"]
 	  		shipped_label.text = (shipped_label.text.to_i + ship_qty.to_i).to_s
 	  		open_label.text = (open_label.text.to_i - ship_qty.to_i).to_s
 
+	  		updateAlertArea("update", "#{tag_scanned} - Good Tag" )
 	  		shipped_label.superview.subviews[6].text = ''
 	  		shipped_label.superview.subviews[7].text = ''
 	  		shipped_label.superview.subviews[8].text = ''
 	  	else
+	  		updateAlertArea("update", "#{tag_scanned} - #{result["result"]}" )
 	  		App.alert(result["result"].to_s)
 	  	end
 	  	
 	  	shipped_label.superview.superview.superview.nextResponder.stopSpinner
+
+
 	  end
 	end
 
@@ -1512,14 +1555,14 @@ class ScreenBuilder < UIViewController
 		if  @header.text.match(/^\w+\s+/)[0].strip.downcase == "shp"
 			effective_date = Time.now.strftime("%m/%d/%y")
 			APIRequest.new.get('get_tag_info', {tag: textfield.text, user: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site.downcase}) do |result|
+				current_view = textfield.superview.subviews
 				if result["success"].downcase == "good"
-					current_view = textfield.superview.subviews
-
 					current_view[6].text = result["INFO"].first["ttqtyloc"].to_i.to_s
 					current_view[7].text = result["INFO"].first["ttloc"]
-					processSHP(@so_number.text, current_view[0].text, effective_date, current_view[5].isOn, current_view[6].text, current_view[7].text, textfield.text, current_view[3], current_view[4])
+					processSHP(@so_number.text, current_view[0].text, effective_date, "no", current_view[6].text, current_view[7].text, textfield.text, current_view[5], current_view[4])
 				else
-					App.alert("No data found for that tag number")
+		  		updateAlertArea("update", "#{current_view[8].text} - #{result["INFO"].first["ttitem"]}" )
+					App.alert(result["INFO"].first["ttitem"])
 				end
 			end
 		end

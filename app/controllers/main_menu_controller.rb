@@ -17,7 +17,7 @@ class MainMenuController < UIViewController
 		button = nil
 		@po_items_count = 0
 
-		@headers = {"Inventory Control" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)", "POR (Purchase Order Receipt)"], "Manufacturing" => ["BKF (Backflush)"], "Label Printing" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Distribution" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)"]}
+		@headers = {"Inventory Control" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)", "POR (Purchase Order Receipt)"], "Manufacturing" => ["BKF (Backflush)"], "Label Printing" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Distribution" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)", "VMI SHP"]}
 
 		setInitialVariableValues
 
@@ -52,6 +52,7 @@ class MainMenuController < UIViewController
 		@line_number = @builder.line_number
 		@prod_line = @builder.prod_line
 		@user_initials = @builder.user_initials
+		@distribution_num = @builder.distribution_num
 	end
 
 	def submit
@@ -193,10 +194,7 @@ class MainMenuController < UIViewController
 							label_count = "1"
 							APIRequest.new.get(@header.text, {type: "por", po_num: @po_number.text, locations: locations, qtys: qtys, multipliers: multipliers, lines: lines, label_count: "#{label_count}", user: UIApplication.sharedApplication.delegate.username.downcase, printer:  UIApplication.sharedApplication.delegate.printer.downcase, site:  UIApplication.sharedApplication.delegate.site.downcase}) do |result|
 
-								# self.navigationItem.rightBarButtonItem.enabled = true
 								po_text = @po_number.text
-
-								# clearSubViews
 
 								if result["success"]
 									success_response = nil
@@ -229,9 +227,8 @@ class MainMenuController < UIViewController
 									# p "http://qadnix.endura.enduraproducts.com/cgi-bin/testapi/xxapiporkey.p?key=#{result[:unique_key]}&userid=#{UIApplication.sharedApplication.delegate.username.downcase}"
 									# @builder.updateAlertArea
 								else
-									App.alert(result)
 									self.navigationItem.rightBarButtonItem.enabled = true
-									@builder.updateAlertArea("failure", "#{result["result"]}")
+									@builder.updateAlertArea("failure", "#{result[:error]}")
 									stopSpinner
 								end
 							end
@@ -335,41 +332,51 @@ class MainMenuController < UIViewController
 	end
 
 	def next
-		self.navigationItem.rightBarButtonItem.enabled = true
-		tag = !@header.text.downcase.match(/plo/).nil? ? @new_tag_num.text : @tag_num.text
-		current_text = !@header.text.downcase.match(/plo/).nil? ? @new_tag_num.text : @tag_num.text
-		APIRequest.new.get('tag_details', {tag: tag, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
-			# unless result["success"] == false
+		title = @header.text.downcase
+
+		if !title.match(/vmi/).nil?
+			APIRequest.new.get('vmi_details', {distribution_num: @distribution_num.text, user: UIApplication.sharedApplication.delegate.username.downcase, action: 'get'}) do |result|
+				if result[:success] == "Good"
+					@builder.buildVMI(self, result["INFO"])
+				else
+					App.alert("Error! #{result[:error]}")
+				end
+			end
+		else
+			self.navigationItem.rightBarButtonItem.enabled = true
+			tag = !title.match(/plo/).nil? ? @new_tag_num.text : @tag_num.text
+			current_text = !title.match(/plo/).nil? ? @new_tag_num.text : @tag_num.text
+			APIRequest.new.get('tag_details', {tag: tag, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 				if  @header.text.match(/^\w+\s+/)[0].strip == "POR" || @header.text.match(/^\w+\s+/)[0].strip == "SHP" || @header.text.match(/^\w+\s+/)[0].strip == "CAR" || @header.text.match(/^\w+\s+/)[0].strip == "SKD"
-					temp = self.view.frame
-					temp.origin.x = -1000
-					UIView.animateWithDuration(0.5, delay: 0.0, options: UIViewAnimationCurveEaseOut, animations: lambda { @tag_num.frame = temp}, completion: lambda {
-						|finished| 
-						header_txt = @header.text.match(/^\w+\s+/)[0].strip
-						clearSubViews unless header_txt == "CAR"
-			
-						@tag_num.userInteractionEnabled = false
-			
-						case header_txt
-						when "POR"
-							poValidate(@po_number.text)
-						when "CAR"
-							line_number = @line_number.class == String ? @line_number : @line_number.text
-							if line_number.empty?
-								App.alert "You must enter a line number."
-								@line_number.becomeFirstResponder unless @line_number.class == String
-							else
-								clearSubViews
-								@builder.buildCAR2(self, current_text)
-							end
-						when "SKD"
-							@builder.buildSKD2(self, current_text)
-						when "SHP"
-							@builder.buildSHP2(self, current_text)
+				temp = self.view.frame
+				temp.origin.x = -1000
+				UIView.animateWithDuration(0.5, delay: 0.0, options: UIViewAnimationCurveEaseOut, animations: lambda { @tag_num.frame = temp}, completion: lambda {
+					|finished| 
+					header_txt = @header.text.match(/^\w+\s+/)[0].strip
+					clearSubViews unless header_txt == "CAR"
+		
+					@tag_num.userInteractionEnabled = false
+		
+					case header_txt
+					when "POR"
+						poValidate(@po_number.text)
+					when "CAR"
+						line_number = @line_number.class == String ? @line_number : @line_number.text
+						if line_number.empty?
+							App.alert "You must enter a line number."
+							@line_number.becomeFirstResponder unless @line_number.class == String
 						else
-							@builder.buildGenericView(self, current_text)
+							clearSubViews
+							@builder.buildCAR2(self, current_text)
 						end
-					})
+					when "SKD"
+						@builder.buildSKD2(self, current_text)
+					when "SHP"
+						@builder.buildSHP2(self, current_text)
+					else
+						@builder.buildGenericView(self, current_text)
+					end
+				})
 				elsif result["result"]["ttsite"] == UIApplication.sharedApplication.delegate.site || (@header.text.match(/^\w+\s+/)[0].strip == "PLO" && result["result"]["ttsite"].empty?)
 					temp = self.view.frame
 					temp.origin.x = -1000
@@ -404,7 +411,7 @@ class MainMenuController < UIViewController
 				else
 					App.alert("You cannot access site data from a different site.")
 				end
-			# end
+			end
 		end
 	end
 

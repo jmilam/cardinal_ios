@@ -19,8 +19,8 @@ class APIRequest
 		elsif NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleDisplayName") == "Cardinal Dev"
 			@api_url = "http://webapidev.enduraproducts.com/api/endura"
 		else
-			# @api_url = "http://localhost:3000/api/endura"
-			@api_url = "http://webapidev.enduraproducts.com/api/endura"
+			@api_url = "http://localhost:3000/api/endura"
+			# @api_url = "http://webapidev.enduraproducts.com/api/endura"
 		end
 
 		if type == "login"
@@ -34,6 +34,10 @@ class APIRequest
 		else
 		 	"#{@api_url}/transactions/#{type.downcase.match(/\w+/)[0]}"
 		end
+	end
+
+	def success?(statusCode)
+		statusCode == 200
 	end
 
 end
