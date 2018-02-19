@@ -14,12 +14,12 @@ Motion::Project::App.setup do |app|
   # Use `rake config' to see complete project settings.
 
   # app.name = 'Cardinal'
-  # app.version = '1.0.18'
+  # app.version = '2.0.10'
   # app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/898767a3-0d05-441a-bf9d-4327c9ac44e4.mobileprovision'
   # app.identifier = 'com.enduraproducts.cardinal'
 
   app.name = 'Cardinal Test'
-  app.version = '1.1.25'
+  app.version = '2.0.9'
   app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/c02807cf-a275-4ada-8751-90107b08ccc1.mobileprovision'
   app.identifier = 'com.enduraproducts.cardinaltest'
 
@@ -30,7 +30,7 @@ Motion::Project::App.setup do |app|
   app.entitlements['get-task-allow'] = false
   app.deployment_target = '11.0'
   app.archs["iphoneSimulator"] = ["i386"]
-  app.archs["iPhoneOS"] = ["armv7"]
+  # app.archs["iPhoneOS"] = ["armv7"]
   app.icons = ["cardinal.jpg"]
 
   app.pods do
