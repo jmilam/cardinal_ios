@@ -213,6 +213,11 @@ class ScreenBuilder < UIViewController
 		@distribution_num = createTextField
 		addSharedAttributes(@distribution_num, "Enter Distirbution #")
 
+		@hidden_tag_num = createTextField
+		addSharedAttributes(@hidden_tag_num, "")
+		@hidden_tag_num.delegate = self
+		@hidden_tag_num.hidden = true
+
 		@current_qty = createLabel
 		@current_qty.textAlignment = UITextAlignmentCenter
 		@current_item = createLabel
@@ -287,17 +292,21 @@ class ScreenBuilder < UIViewController
 			@distribution_num.userInteractionEnabled = true
 			@distribution_num.becomeFirstResponder
 
+			@tag_view_area = UIScrollView.new
+
 			Motion::Layout.new do |layout|
 				layout.view viewController.view
-				layout.subviews "table" => @table, "header" => @header, "distribution_num_label" => @distribution_num_label, "distribution_num" => @distribution_num, "alert_area" => @alert_area
+				layout.subviews "table" => @table, "header" => @header, "distribution_num_label" => @distribution_num_label, "distribution_num" => @distribution_num, "hidden_tag_num" => @hidden_tag_num, "tag_view_area" => @tag_view_area, "alert_area" => @alert_area
 				layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2)
 				layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
-				layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[distribution_num_label(==height)][distribution_num(==height)]-(>=10)-|"
+				layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[distribution_num_label(==height)][distribution_num(==height)]-[hidden_tag_num(==height)]-[tag_view_area]-10-|"
 				layout.vertical "|-#{@nav_bar_height}-[header(==height)]-(>=10)-|"
 				layout.horizontal "|-0-[alert_area(==400)]-0-|"
 				layout.horizontal "|-0-[table(==400)]-[header]-10-|"
 				layout.horizontal "|-left_margin-[header]-10-|"
 				layout.horizontal "|-left_margin-[distribution_num_label(==half_width)][distribution_num(==half_width)]-10-|"
+				layout.horizontal "|-left_margin-[hidden_tag_num]-10-|"
+				layout.horizontal "|-left_margin-[tag_view_area]-10-|"
 			end
 		else
 			@tag_num_label.text = 'Enter Tag Number'
@@ -1250,7 +1259,27 @@ class ScreenBuilder < UIViewController
 	end
 
 	def buildVMI(viewController, tag_numbers)
-		p "BUILDING VMI"
+		position = 0
+
+		@tag_view_area.subviews.each { |subview| subview.removeFromSuperview }
+
+		tag_numbers.each do |tag_value|
+			parentView = UIView.new
+			parentView.frame = [[100,position],[self.view.frame.size.width - 400,50]]
+			parentView.tag = tag_value['tttag'].to_i
+
+			label = UILabel.alloc.initWithFrame([[100, 0],[self.view.frame.size.width - 400,50]])
+			label.numberOfLines = 1
+			label.text = "#{tag_value['tttag']}"
+
+			parentView.addSubview(label)
+			@tag_view_area.addSubview(parentView)
+
+			position += 50
+		end
+		@hidden_tag_num.becomeFirstResponder
+		@tag_view_area.contentSize = CGSizeMake(self.view.frame.size.width - 440, position)
+
 	end
 
 	def sharedLayoutParameters(layout, *params)
@@ -1565,6 +1594,22 @@ class ScreenBuilder < UIViewController
 					App.alert(result["INFO"].first["ttitem"])
 				end
 			end
+		elsif @header.text.match(/^\w+\s+/)[0].strip.downcase == "vmi"
+			workingView = @tag_view_area.viewWithTag(textfield.text.to_i)
+			unless workingView.nil?
+				if workingView.subviews.count == 1
+					#make api request to post value. On return value, show check if scanned good
+					APIRequest.new.post('submit_vmi_tag', {tag_num: @distribution_num.text, user: UIApplication.sharedApplication.delegate.username.downcase, action: 'post'}) do |result|
+						p result
+						success = UIImageView.alloc.initWithFrame([[0,0], [50, 50]])
+						success.image = UIImage.imageNamed("green_check.png")
+						workingView.addSubview(success)
+					end
+				else
+					App.alert("Tag has already been scanned.")
+				end
+			end
+			textfield.text = ''
 		end
 	end
 
