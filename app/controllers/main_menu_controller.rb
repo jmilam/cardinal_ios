@@ -619,6 +619,15 @@ class MainMenuController < UIViewController
 		end
 	end
 
+	def searchBarShouldBeginEditing(searchBar)
+		if !@popup.nil?
+			@popup.subviews.each { |subview| subview.removeFromSuperview }
+			@popup.removeFromSuperview
+			@popup = nil
+		end
+		p "START EDITING"
+	end
+
 	def searchBarSearchButtonClicked(searchBar)
 		APIRequest.new.get('item_lookup', {part: searchBar.text, site: UIApplication.sharedApplication.delegate.site.to_s, user:UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 			if result["success"] == "good"
@@ -627,7 +636,7 @@ class MainMenuController < UIViewController
 					@popup= UIScrollView.new
 					@popup.frame = [[self.view.frame.size.width / 3.5,self.view.frame.size.height / 3.5],[self.view.frame.size.width / 2, self.view.frame.size.height/2]]
 	    		@popup.setBackgroundColor(UIColor.blackColor)
-	  			@popup.alpha=0.6
+	  			@popup.alpha=0.9
 
 	  			close_btn = UIButton.buttonWithType(UIButtonTypeRoundedRect)
 	  			close_btn.tintColor = UIColor.blackColor
@@ -657,23 +666,27 @@ class MainMenuController < UIViewController
 	  				unless info['ttqtyloc'].to_i < 0
 	  					position = position += 60
 		  				loc = UILabel.new
-		  				loc.frame = [[10,position],[@popup.frame.size.width / 3, 50]]
+		  				loc.frame = [[10,position],[@popup.frame.size.width / 4, 50]]
 		  				loc.color = UIColor.whiteColor
+		  				loc.adjustsFontSizeToFitWidth = true
 		  				loc.text = "Location: #{info['ttloc']}"
 		
 		  				qty_label = UILabel.new
-		  				qty_label.frame = [[(@popup.frame.size.width / 3) + 5, position], [@popup.frame.size.width / 3, 50]]
+		  				qty_label.frame = [[(@popup.frame.size.width / 4) + 15, position], [@popup.frame.size.width / 4, 50]]
 		  				qty_label.color = UIColor.whiteColor
+		  				qty_label.adjustsFontSizeToFitWidth = true
 		  				qty_label.text = "Qty: #{info['ttqtyloc'].to_i}"
 		
 		  				tag = UILabel.new
-		  				tag.frame = [[(@popup.frame.size.width / 3) + 100 , position], [(@popup.frame.size.width / 3), 50]]
+		  				tag.frame = [[(@popup.frame.size.width / 4) + 105 , position], [(@popup.frame.size.width / 4), 50]]
 		  				tag.color = UIColor.whiteColor
+		  				tag.adjustsFontSizeToFitWidth = true
 		  				tag.text = "Tag: #{info['tttag']}"
 		
 		  				status = UILabel.new
-		  				status.frame = [[(@popup.frame.size.width / 3) + 240 , position], [(@popup.frame.size.width / 3), 50]]
+		  				status.frame = [[(@popup.frame.size.width / 4) + 245 , position], [(@popup.frame.size.width / 4), 50]]
 		  				status.color = UIColor.whiteColor
+		  				status.adjustsFontSizeToFitWidth = true
 		  				status.text = "Status: #{info['ttstatus']}"
 		  				
 		  				@popup.addSubview(loc)
@@ -692,6 +705,7 @@ class MainMenuController < UIViewController
 
 	  			self.view.addSubview(@popup)
 	  			searchBar.text = ""
+	  			searchBar.resignFirstResponder
 	  		end
 
   			header = nil
