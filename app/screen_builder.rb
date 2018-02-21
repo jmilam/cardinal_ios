@@ -246,6 +246,7 @@ class ScreenBuilder < UIViewController
 
 	def buildStartingPoint(viewController)
  	 	viewController.navigationItem.rightBarButtonItem = @nextBtn
+ 	 	@nextBtn.enabled = true
 		@tag_num.userInteractionEnabled = true
 		@tag_num.becomeFirstResponder
 
@@ -544,6 +545,7 @@ class ScreenBuilder < UIViewController
 
 	def buildPOR1(viewController, current_text)
  	 	viewController.navigationItem.rightBarButtonItem = @nextBtn
+ 	 	@nextBtn.enabled = true
 		@po_number.userInteractionEnabled = true
 		@po_number.becomeFirstResponder
 
@@ -719,6 +721,7 @@ class ScreenBuilder < UIViewController
 
 	def buildCAR1(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @nextBtn
+		@nextBtn.enabled = true
 		@so_number.becomeFirstResponder
 		@so_number.userInteractionEnabled = true
 		@line_number.userInteractionEnabled = true
@@ -920,6 +923,7 @@ class ScreenBuilder < UIViewController
 
 	def buildSKD1(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @nextBtn
+		@nextBtn.enabled = true
 		@so_number.becomeFirstResponder
 
 		@so_num_group = create_textfield_group(@so_num_label, @so_number, viewController, true) 
@@ -1014,6 +1018,7 @@ class ScreenBuilder < UIViewController
 
 	def buildSHP1(viewController, current_text)
 		viewController.navigationItem.rightBarButtonItem = @nextBtn
+		@nextBtn.enabled = true
 		@so_number.becomeFirstResponder
 		@so_number.userInteractionEnabled = true
 
@@ -1259,6 +1264,7 @@ class ScreenBuilder < UIViewController
 	end
 
 	def buildVMI(viewController, tag_numbers)
+		@nextBtn.enabled = false
 		position = 0
 
 		@tag_view_area.subviews.each { |subview| subview.removeFromSuperview }
@@ -1272,7 +1278,12 @@ class ScreenBuilder < UIViewController
 			label.numberOfLines = 1
 			label.text = "#{tag_value['tttag']}"
 
+			breakline = UILabel.new
+			breakline.backgroundColor = UIColor.blackColor
+			breakline.frame = [[-100,50], [self.view.frame.size.width - 400,2]]
+
 			parentView.addSubview(label)
+			parentView.addSubview(breakline)
 			@tag_view_area.addSubview(parentView)
 
 			position += 50
@@ -1596,17 +1607,32 @@ class ScreenBuilder < UIViewController
 			end
 		elsif @header.text.match(/^\w+\s+/)[0].strip.downcase == "vmi"
 			workingView = @tag_view_area.viewWithTag(textfield.text.to_i)
+			remainingTags = @tag_view_area.subviews.count
 			unless workingView.nil?
-				if workingView.subviews.count == 1
-					#make api request to post value. On return value, show check if scanned good
-					APIRequest.new.post('submit_vmi_tag', {tag_num: @distribution_num.text, user: UIApplication.sharedApplication.delegate.username.downcase, action: 'post'}) do |result|
-						p result
-						success = UIImageView.alloc.initWithFrame([[0,0], [50, 50]])
-						success.image = UIImage.imageNamed("green_check.png")
-						workingView.addSubview(success)
+				if workingView.subviews.count == 2
+					success = UIImageView.alloc.initWithFrame([[0,0], [50, 50]])
+					success.image = UIImage.imageNamed("green_check.png")
+					workingView.addSubview(success)
+
+					@tag_view_area.subviews.map do |detailView|
+						remainingTags -= 1 if detailView.subviews.count == 3
 					end
 				else
 					App.alert("Tag has already been scanned.")
+				end
+			end
+
+			if remainingTags == 0
+				APIRequest.new.post('submit_vmi_tag', {distribution_num: @distribution_num.text, user: UIApplication.sharedApplication.delegate.username.downcase, action: 'pick'}) do |result|
+					if result[:success] == "Good"
+						App.alert("Order successfully placed.")
+					else
+						App.alert("Error! #{result[:error]}")
+					end
+					@tag_view_area.subviews.each { |subview| subview.removeFromSuperview }
+					@nextBtn.enabled = true
+					@distribution_num.text = ''
+					@distribution_num.becomeFirstResponder	
 				end
 			end
 			textfield.text = ''
