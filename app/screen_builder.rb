@@ -1270,6 +1270,8 @@ class ScreenBuilder < UIViewController
 		@tag_view_area.subviews.each { |subview| subview.removeFromSuperview }
 
 		tag_numbers.each do |tag_value|
+			longGesture = UITapGestureRecognizer.alloc.initWithTarget(self, action: 'handleTapGestures:')
+
 			parentView = UIView.new
 			parentView.frame = [[100,position],[self.view.frame.size.width - 400,50]]
 			parentView.tag = tag_value['tttag'].to_i
@@ -1284,6 +1286,8 @@ class ScreenBuilder < UIViewController
 
 			parentView.addSubview(label)
 			parentView.addSubview(breakline)
+			parentView.addGestureRecognizer(longGesture)
+
 			@tag_view_area.addSubview(parentView)
 
 			position += 50
@@ -1445,6 +1449,10 @@ class ScreenBuilder < UIViewController
 		sender.view.subviews[2].becomeFirstResponder
 	end
 
+	def handleTapGestures(sender)
+		processTagScan(sender.view)
+	end
+
 	def processSHP(so, line, effective_date, cancel_bo, ship_qty , location, tag, shipped_label, open_label)
 		shipped_label.superview.superview.superview.nextResponder.showSpinner
 
@@ -1469,6 +1477,37 @@ class ScreenBuilder < UIViewController
 
 
 	  end
+	end
+
+	def processTagScan(workingView)
+		remainingTags = @tag_view_area.subviews.count
+		unless workingView.nil?
+			if workingView.subviews.count == 2
+				success = UIImageView.alloc.initWithFrame([[0,0], [50, 50]])
+				success.image = UIImage.imageNamed("green_check.png")
+				workingView.addSubview(success)
+
+				@tag_view_area.subviews.map do |detailView|
+					remainingTags -= 1 if detailView.subviews.count == 3
+				end
+			else
+				App.alert("Tag has already been scanned.")
+			end
+		end
+
+		if remainingTags == 0
+			APIRequest.new.post('submit_vmi_tag', {distribution_num: @distribution_num.text, user: UIApplication.sharedApplication.delegate.username.downcase, action: 'pick'}) do |result|
+				if result[:success] == "Good"
+					App.alert("Order successfully placed.")
+				else
+					App.alert("Error! #{result[:error]}")
+				end
+				@tag_view_area.subviews.each { |subview| subview.removeFromSuperview }
+				@nextBtn.enabled = true
+				@distribution_num.text = ''
+				@distribution_num.becomeFirstResponder	
+			end
+		end
 	end
 
 	def textField(textField, shouldChangeCharactersInRange: range, replacementString: replacement)
@@ -1607,34 +1646,7 @@ class ScreenBuilder < UIViewController
 			end
 		elsif @header.text.match(/^\w+\s+/)[0].strip.downcase == "vmi"
 			workingView = @tag_view_area.viewWithTag(textfield.text.to_i)
-			remainingTags = @tag_view_area.subviews.count
-			unless workingView.nil?
-				if workingView.subviews.count == 2
-					success = UIImageView.alloc.initWithFrame([[0,0], [50, 50]])
-					success.image = UIImage.imageNamed("green_check.png")
-					workingView.addSubview(success)
-
-					@tag_view_area.subviews.map do |detailView|
-						remainingTags -= 1 if detailView.subviews.count == 3
-					end
-				else
-					App.alert("Tag has already been scanned.")
-				end
-			end
-
-			if remainingTags == 0
-				APIRequest.new.post('submit_vmi_tag', {distribution_num: @distribution_num.text, user: UIApplication.sharedApplication.delegate.username.downcase, action: 'pick'}) do |result|
-					if result[:success] == "Good"
-						App.alert("Order successfully placed.")
-					else
-						App.alert("Error! #{result[:error]}")
-					end
-					@tag_view_area.subviews.each { |subview| subview.removeFromSuperview }
-					@nextBtn.enabled = true
-					@distribution_num.text = ''
-					@distribution_num.becomeFirstResponder	
-				end
-			end
+			processTagScan(workingView)
 			textfield.text = ''
 		end
 	end

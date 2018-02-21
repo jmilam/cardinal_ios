@@ -626,77 +626,94 @@ class MainMenuController < UIViewController
 		end
 	end
 
+	def searchBarShouldBeginEditing(searchBar)
+		if !@popup.nil?
+			@popup.subviews.each { |subview| subview.removeFromSuperview }
+			@popup.removeFromSuperview
+			@popup = nil
+		end
+		p "START EDITING"
+	end
+
 	def searchBarSearchButtonClicked(searchBar)
 		APIRequest.new.get('item_lookup', {part: searchBar.text, site: UIApplication.sharedApplication.delegate.site.to_s, user:UIApplication.sharedApplication.delegate.username.downcase}) do |result|
 			if result["success"] == "good"
 				info = result["INFO"].last
-				@popup= UIScrollView.new
-				@popup.frame = [[self.view.frame.size.width / 3.5,self.view.frame.size.height / 3.5],[self.view.frame.size.width / 2, self.view.frame.size.height/2]]
-    		@popup.setBackgroundColor(UIColor.blackColor)
-  			@popup.alpha=0.6
+				unless self.view.subviews.include?(@popup)
+					@popup= UIScrollView.new
+					@popup.frame = [[self.view.frame.size.width / 3.5,self.view.frame.size.height / 3.5],[self.view.frame.size.width / 2, self.view.frame.size.height/2]]
+	    		@popup.setBackgroundColor(UIColor.blackColor)
+	  			@popup.alpha=0.9
 
-  			close_btn = UIButton.buttonWithType(UIButtonTypeRoundedRect)
-  			close_btn.tintColor = UIColor.blackColor
-  			close_btn.frame = [[0,0], [50,50]]
-				close_btn.setTitle('x', forState:UIControlStateNormal)
-				close_btn.setBackgroundColor(UIColor.redColor)
-				close_btn.addTarget(self, action: 'closePopup', forControlEvents:UIControlEventTouchUpInside)
-  			@popup.addSubview(close_btn)
-  			
-  			header = UILabel.new
-  			header.frame = [[50,0],[@popup.frame.size.width- 50,50]]
-  			header.setBackgroundColor(UIColor.redColor)
-  			header.textAlignment = NSTextAlignmentCenter
-  			header.text = "#{searchBar.text}"
-  			@popup.addSubview(header)
+	  			close_btn = UIButton.buttonWithType(UIButtonTypeRoundedRect)
+	  			close_btn.tintColor = UIColor.blackColor
+	  			close_btn.frame = [[0,0], [50,50]]
+					close_btn.setTitle('x', forState:UIControlStateNormal)
+					close_btn.setBackgroundColor(UIColor.redColor)
+					close_btn.addTarget(self, action: 'closePopup', forControlEvents:UIControlEventTouchUpInside)
+	  			@popup.addSubview(close_btn)
+	  			
+	  			header = UILabel.new
+	  			header.frame = [[50,0],[@popup.frame.size.width- 50,50]]
+	  			header.setBackgroundColor(UIColor.redColor)
+	  			header.textAlignment = NSTextAlignmentCenter
+	  			header.text = "#{searchBar.text}"
+	  			@popup.addSubview(header)
 
-  			desc = UILabel.new
-  			desc.frame = [[0,50],[@popup.frame.size.width, 50]]
-  			desc.setBackgroundColor(UIColor.whiteColor)
-  			desc.textAlignment = NSTextAlignmentCenter
-  			#desc.text = "Item Description: #{info['ttdesc1']}"
-  			desc.text = "Item Description: #{info['ttdesc2']}"
-  			@popup.addSubview(desc)
+	  			desc = UILabel.new
+	  			desc.frame = [[0,50],[@popup.frame.size.width, 50]]
+	  			desc.setBackgroundColor(UIColor.whiteColor)
+	  			desc.textAlignment = NSTextAlignmentCenter
+	  			#desc.text = "Item Description: #{info['ttdesc1']}"
+	  			desc.text = "Item Description: #{info['ttdesc2']}"
+	  			@popup.addSubview(desc)
 
-  			position = 60
-  			result["INFO"].each do |info|
-  				unless info['ttqtyloc'].to_i < 0
-  					position = position += 60
-	  				loc = UILabel.new
-	  				loc.frame = [[10,position],[@popup.frame.size.width / 3, 50]]
-	  				loc.color = UIColor.whiteColor
-	  				loc.text = "Location: #{info['ttloc']}"
-	
-	  				qty_label = UILabel.new
-	  				qty_label.frame = [[(@popup.frame.size.width / 3) + 5, position], [@popup.frame.size.width / 3, 50]]
-	  				qty_label.color = UIColor.whiteColor
-	  				qty_label.text = "Qty: #{info['ttqtyloc'].to_i}"
-	
-	  				tag = UILabel.new
-	  				tag.frame = [[(@popup.frame.size.width / 3) + 100 , position], [(@popup.frame.size.width / 3), 50]]
-	  				tag.color = UIColor.whiteColor
-	  				tag.text = "Tag: #{info['tttag']}"
-	
-	  				status = UILabel.new
-	  				status.frame = [[(@popup.frame.size.width / 3) + 240 , position], [(@popup.frame.size.width / 3), 50]]
-	  				status.color = UIColor.whiteColor
-	  				status.text = "Status: #{info['ttstatus']}"
-	  				
-	  				@popup.addSubview(loc)
-	  				@popup.addSubview(qty_label)
-	  				@popup.addSubview(tag)
-	  				@popup.addSubview(status)
-	
-	  				loc = nil
-	  				qty_label = nil
-	  				tag = nil
-	  				status = nil
-	  			end
+	  			position = 60
+	  			result["INFO"].each do |info|
+	  				unless info['ttqtyloc'].to_i < 0
+	  					position = position += 60
+		  				loc = UILabel.new
+		  				loc.frame = [[10,position],[@popup.frame.size.width / 4, 50]]
+		  				loc.color = UIColor.whiteColor
+		  				loc.adjustsFontSizeToFitWidth = true
+		  				loc.text = "Location: #{info['ttloc']}"
+		
+		  				qty_label = UILabel.new
+		  				qty_label.frame = [[(@popup.frame.size.width / 4) + 15, position], [@popup.frame.size.width / 4, 50]]
+		  				qty_label.color = UIColor.whiteColor
+		  				qty_label.adjustsFontSizeToFitWidth = true
+		  				qty_label.text = "Qty: #{info['ttqtyloc'].to_i}"
+		
+		  				tag = UILabel.new
+		  				tag.frame = [[(@popup.frame.size.width / 4) + 105 , position], [(@popup.frame.size.width / 4), 50]]
+		  				tag.color = UIColor.whiteColor
+		  				tag.adjustsFontSizeToFitWidth = true
+		  				tag.text = "Tag: #{info['tttag']}"
+		
+		  				status = UILabel.new
+		  				status.frame = [[(@popup.frame.size.width / 4) + 245 , position], [(@popup.frame.size.width / 4), 50]]
+		  				status.color = UIColor.whiteColor
+		  				status.adjustsFontSizeToFitWidth = true
+		  				status.text = "Status: #{info['ttstatus']}"
+		  				
+		  				@popup.addSubview(loc)
+		  				@popup.addSubview(qty_label)
+		  				@popup.addSubview(tag)
+		  				@popup.addSubview(status)
+		
+		  				loc = nil
+		  				qty_label = nil
+		  				tag = nil
+		  				status = nil
+		  			end
+		  		end
+
+	  			@popup.contentSize = CGSizeMake(@popup.frame.size.width - 440, position+50)
+
+	  			self.view.addSubview(@popup)
+	  			searchBar.text = ""
+	  			searchBar.resignFirstResponder
 	  		end
-
-  			@popup.contentSize = CGSizeMake(@popup.frame.size.width - 440, position+50)
-
-  			self.view.addSubview(@popup)
 
   			header = nil
   			desc = nil
