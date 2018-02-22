@@ -1293,7 +1293,7 @@ class ScreenBuilder < UIViewController
 			position += 50
 		end
 		@hidden_tag_num.becomeFirstResponder
-		@tag_view_area.contentSize = CGSizeMake(self.view.frame.size.width - 440, position)
+		@tag_view_area.contentSize = CGSizeMake(self.view.frame.size.width - 440, position + 50)
 
 	end
 
