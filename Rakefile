@@ -20,7 +20,7 @@ Motion::Project::App.setup do |app|
   # app.identifier = 'com.enduraproducts.cardinal'
 
   app.name = 'Cardinal Test'
-  app.version = '2.0.15'
+  app.version = '2.0.17'
   app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/c02807cf-a275-4ada-8751-90107b08ccc1.mobileprovision'
   app.identifier = 'com.enduraproducts.cardinaltest'
 
