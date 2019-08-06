@@ -31,6 +31,9 @@ class ScreenBuilder < UIViewController
 	attr_reader :prod_line
 	attr_reader :user_initials
 	attr_reader :distribution_num
+	attr_accessor :tag_view_area
+	attr_accessor :header_area
+	attr_accessor :scanned_tags
 
 	def initWithView(view)
 		@cartons = Array.new
@@ -111,6 +114,7 @@ class ScreenBuilder < UIViewController
 	end
 
 	def buildMainMenu(viewController)
+		@scanned_tags = []
 		@alert_area = createView
 		buildAlertArea(@alert_area)
 
@@ -168,11 +172,11 @@ class ScreenBuilder < UIViewController
 		@to_site = createTextField
 		addSharedAttributes(@to_site, '')
 
-		@lot =createTextField
+		@lot = createTextField
 		addSharedAttributes(@lot, '')
 
 		@remarks = createTextField
-		addSharedAttributes(@remarks, '15 letter max')
+		addSharedAttributes(@remarks, '18 letter max')
 		@remarks.delegate = self
 
 		@skid_num = createTextField
@@ -213,10 +217,21 @@ class ScreenBuilder < UIViewController
 		@distribution_num = createTextField
 		addSharedAttributes(@distribution_num, "Enter Distirbution #")
 
+		@toolbar = UIToolbar.alloc.initWithFrame([[0,0], [self.view.frame.size.width, 50]])
+		@toolbar.barStyle = UIBarStyleDefault
+		@toolbar.translucent = true
+
+		doneButton = UIBarButtonItem.alloc.initWithTitle("Close", style: UIBarButtonItemStylePlain, target: self, action: "closePicker")
+		switchKeyboard = UIBarButtonItem.alloc.initWithTitle("Switch Keyboard Type", style: UIBarButtonItemStylePlain, target: self, action: "switchPicker")
+		@toolbar.setItems([doneButton, switchKeyboard])
+		@toolbar.userInteractionEnabled = true
+
 		@hidden_tag_num = createTextField
 		addSharedAttributes(@hidden_tag_num, "")
 		@hidden_tag_num.delegate = self
 		@hidden_tag_num.hidden = true
+
+		@header_area = createView
 
 		@current_qty = createLabel
 		@current_qty.textAlignment = UITextAlignmentCenter
@@ -290,25 +305,50 @@ class ScreenBuilder < UIViewController
 				layout.horizontal "|-left_margin-[new_button(==half_width)]-[tag_num_group(==half_width)]-10-|"
 			end
 		elsif @header.text.downcase.match(/vmi/) != nil
-			@distribution_num.userInteractionEnabled = true
-			@distribution_num.becomeFirstResponder
+			@distribution_num.text = ''
+			getDods(viewController)
 
 			@tag_view_area = UIScrollView.new
+			@header_area.subviews.each { |subview| subview.removeFromSuperview}
+			@header_area.backgroundColor = UIColor.whiteColor
 
 			Motion::Layout.new do |layout|
 				layout.view viewController.view
-				layout.subviews "table" => @table, "header" => @header, "distribution_num_label" => @distribution_num_label, "distribution_num" => @distribution_num, "hidden_tag_num" => @hidden_tag_num, "tag_view_area" => @tag_view_area, "alert_area" => @alert_area
+				layout.subviews "table" => @table, "header" => @header, "distribution_num_label" => @distribution_num_label, "distribution_num" => @distribution_num, "hidden_tag_num" => @hidden_tag_num, "header_area" => @header_area, "tag_view_area" => @tag_view_area, "alert_area" => @alert_area
 				layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "half_width" => ((viewController.view.frame.size.width - 410) / 2)
 				layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
-				layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[distribution_num_label(==height)][distribution_num(==height)]-[hidden_tag_num(==height)]-[tag_view_area]-10-|"
+				layout.vertical "|-#{@nav_bar_height}-[header(==height)]-margin-[distribution_num_label(==height)][distribution_num(==height)]-[header_area(==140)]-[hidden_tag_num(==20)]-[tag_view_area]-10-|"
 				layout.vertical "|-#{@nav_bar_height}-[header(==height)]-(>=10)-|"
 				layout.horizontal "|-0-[alert_area(==400)]-0-|"
 				layout.horizontal "|-0-[table(==400)]-[header]-10-|"
 				layout.horizontal "|-left_margin-[header]-10-|"
 				layout.horizontal "|-left_margin-[distribution_num_label(==half_width)][distribution_num(==half_width)]-10-|"
+				layout.horizontal "|-left_margin-[header_area]-10-|"
 				layout.horizontal "|-left_margin-[hidden_tag_num]-10-|"
 				layout.horizontal "|-left_margin-[tag_view_area]-10-|"
 			end
+		elsif @header.text.downcase.match(/inventory/) != nil
+			@webView = UIWebView.new
+			# url = NSURL.URLWithString("http://qadnet.enduraproducts.com/menu/invdet?site=All")
+			url = NSURLComponents.componentsWithString("http://qadnet.enduraproducts.com/menu/invdet?site=All")
+			url.user = "CardinalIIS"
+      url.password = "endura1234"
+
+	    @webView.loadRequest(NSURLRequest.requestWithURL(url.URL))
+			
+			Motion::Layout.new do |layout|
+				layout.view viewController.view
+				layout.subviews "table" => @table, "header" => @header, "alert_area" => @alert_area, "webview" => @webView
+				layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410, "web_width" => ((viewController.view.frame.size.height - @header.frame.size.height))
+				layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
+				layout.vertical "|-#{@nav_bar_height}-[header(==height)]-[webview(==web_width)]-(>=10)-|"
+				layout.horizontal "|-0-[alert_area(==400)]-0-|"
+				layout.horizontal "|-0-[table(==400)]-[header]-10-|"
+				layout.horizontal "|-left_margin-[header]-10-|"
+				layout.horizontal "|-left_margin-[webview]-10-|"
+			end
+
+			viewController.view.nextResponder.delayShowSpinner			
 		else
 			@tag_num_label.text = 'Enter Tag Number'
 			@tag_num_group = create_textfield_group(@new_tag_num_label, @new_tag_num, viewController) 
@@ -563,6 +603,7 @@ class ScreenBuilder < UIViewController
 	end
 
 	def buildPOR2(viewController, data_hash)
+		@po_number.text = data_hash[:po_number] unless data_hash[:po_number].nil?
 		viewController.navigationItem.rightBarButtonItem = @submitBtn
 		viewController.navigationItem.rightBarButtonItem.enabled = true
 
@@ -579,29 +620,29 @@ class ScreenBuilder < UIViewController
 		label.textColor = UIColor.whiteColor
 		label.textAlignment = UITextAlignmentCenter
 
-		label0 = UILabel.alloc.initWithFrame([[60,0],[100,30]])
+		label0 = UILabel.alloc.initWithFrame([[60,0],[150,30]])
 		label0.numberOfLines = 2
 		label0.text = "Item Num"
 		label0.adjustsFontSizeToFitWidth = true
 		label0.textColor = UIColor.whiteColor
 		label0.textAlignment = UITextAlignmentCenter
 
-		label1 = UILabel.alloc.initWithFrame([[170,0],[100,30]])
-		label1.numberOfLines = 2
-		label1.text = "Location"
-		label1.adjustsFontSizeToFitWidth = true
-		label1.textColor = UIColor.whiteColor
-		label1.textAlignment = UITextAlignmentCenter
+		# label1 = UILabel.alloc.initWithFrame([[170,0],[100,30]])
+		# label1.numberOfLines = 2
+		# label1.text = "Location"
+		# label1.adjustsFontSizeToFitWidth = true
+		# label1.textColor = UIColor.whiteColor
+		# label1.textAlignment = UITextAlignmentCenter
 
-		label2 = UILabel.alloc.initWithFrame([[280,0],[125,30]])
+		label2 = UILabel.alloc.initWithFrame([[220,0],[155,30]])
 		label2.numberOfLines = 2
-		label2.text = "Qty Recv"
+		label2.text = "Description"
 		label2.adjustsFontSizeToFitWidth = true
 		label2.textColor = UIColor.whiteColor
 		label2.textAlignment = UITextAlignmentCenter
 
-		label3 = UILabel.alloc.initWithFrame([[415,0],[75,30]])
-		label3.text = "Multiplier"
+		label3 = UILabel.alloc.initWithFrame([[385,0],[105,30]])
+		label3.text = "Dimensions"
 		label3.adjustsFontSizeToFitWidth = true
 		label3.textColor = UIColor.whiteColor
 		label3.textAlignment = UITextAlignmentCenter
@@ -614,7 +655,7 @@ class ScreenBuilder < UIViewController
 
 		@table_header.addSubview(label)
 		@table_header.addSubview(label0)
-		@table_header.addSubview(label1)
+		# @table_header.addSubview(label1)
 		@table_header.addSubview(label2)
 		@table_header.addSubview(label3)
 		@table_header.addSubview(label4)
@@ -622,7 +663,7 @@ class ScreenBuilder < UIViewController
 
 		label = nil
 		label0 = nil
-		label1 = nil
+		# label1 = nil
 		label2 = nil
 		label3 = nil
 		label4 = nil
@@ -643,40 +684,62 @@ class ScreenBuilder < UIViewController
 			longGesture.minimumPressDuration = 0.5
 			new_view.addGestureRecognizer(longGesture)
 
-			label1 = UILabel.alloc.initWithFrame([[0, 0], [60,20]])
+			label1 = UILabel.alloc.initWithFrame([[20, 0], [60,20]])
 
-			label2 = UILabel.alloc.initWithFrame([[60,0],[100,30]])
+			label2 = UILabel.alloc.initWithFrame([[60,0],[150,30]])
 			label2.adjustsFontSizeToFitWidth = true
 
 
 			label3 = createTextField
 			addSharedAttributes(label3, "Location..")
-			label3.frame = [[170,0], [100,30]]
+			label3.frame = [[510,50],[100,30]]
 			label3.layer.borderWidth= 0.0
 			label3.delegate = self
 			label3.inputView = @locations
+			label3.textAlignment = UITextAlignmentLeft
 			
 
 			label4 = createTextField
 			addSharedAttributes(label4, "Qty receiving?")
-			label4.frame = [[280,0],[125,30]]
+			label4.frame = [[105,50],[150,30]]
 			label4.layer.borderWidth= 0.0
+			label4.textAlignment = UITextAlignmentCenter
 
 			label5 = createTextField
 			addSharedAttributes(label5, "Multiplier")
-			label5.frame = [[415,0],[75,30]]
+			label5.frame = [[365,50],[60,30]]
 			label5.layer.borderWidth= 0.0
+
 
 			label6 = UILabel.alloc.initWithFrame([[500,0],[100,30]] )
 			label6.adjustsFontSizeToFitWidth = true
 
+			label7 = UILabel.alloc.initWithFrame([[20,50],[80,30]])
+			label7.text = "Qty Recv:"
+			label7.textAlignment = UITextAlignmentRight
+
+			label8 = UILabel.alloc.initWithFrame([[260,50],[100,30]])
+			label8.text = "Multiplier:"
+
+			label9 = UILabel.alloc.initWithFrame([[220,0],[155,30]])
+			label9.text = data["ttdesc"]
+			label9.adjustsFontSizeToFitWidth = true
+			label9.textAlignment = UITextAlignmentCenter
+
+			label10 = UILabel.alloc.initWithFrame([[385,0],[105,30]])
+			label10.text = data["ttdim"]
+			label10.textAlignment = UITextAlignmentCenter
+			label10.adjustsFontSizeToFitWidth = true
+
+			label11 = UILabel.alloc.initWithFrame([[430,50],[80,30]])
+			label11.text = "Location:"
+
 			breakline = UILabel.new
 			breakline.backgroundColor = UIColor.blackColor
-			breakline.frame = [[0,39], [600,1]]
+			breakline.frame = [[0,89], [600,1]]
 
 			label1.text = data["ttline"].to_s
 			label2.text = data["ttitem"]
-			# p data_hash[:locations][data["ttitem"]]
 			label3.text = data_hash[:default_locations][data["ttitem"]][0]
 			label5.text = "1"
 			label6.text = "Open Qty: " + data["ttqtyopen"].to_i.to_s 
@@ -687,12 +750,16 @@ class ScreenBuilder < UIViewController
 			new_view.addSubview(label4)
 			new_view.addSubview(label5)
 			new_view.addSubview(label6)
+			new_view.addSubview(label7)
+			new_view.addSubview(label8)
+			new_view.addSubview(label9)
+			new_view.addSubview(label10)
+			new_view.addSubview(label11)	
 			new_view.addSubview(breakline)
-			
 
 			@data_container.addSubview(new_view)
 
-			position += 50
+			position += 100
 			label1 = nil
 			label2 = nil
 			label3 = nil
@@ -710,7 +777,7 @@ class ScreenBuilder < UIViewController
 			layout.subviews "table" => @table, "header" => @header, "po_label" => @po_label, "po_number" => @po_number, "table_header" => @table_header, "data_container" => @data_container, "alert_area" => @alert_area
 			layout.metrics "margin" => 10, "height" => 50, "left_margin" => 410,  "half_width" => ((viewController.view.frame.size.width - 410) / 2)
 			layout.vertical "|-#{@nav_bar_height}-[table(>=500)]-[alert_area]-0-|"
-			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[po_label(==height)][po_number(==height)]-[table_header(==height)]-[data_container(==300)]-(>=10)-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==50)]-margin-[po_label(==height)][po_number(==height)]-[table_header(==height)]-[data_container(==500)]-(>=10)-|"
 			layout.horizontal "|-left_margin-[po_label(==half_width)][po_number(==half_width)]-10-|"
 			layout.horizontal "|-left_margin-[table_header]-10-|"
 			layout.horizontal "|-left_margin-[data_container]-10-|"
@@ -1263,38 +1330,170 @@ class ScreenBuilder < UIViewController
 		end
 	end
 
-	def buildVMI(viewController, tag_numbers)
-		@nextBtn.enabled = false
-		position = 0
+	def buildVMI(viewController, tag_numbers, weight, customer, fbm)
+		bdtfm = 0
+		@total_weight = 0.0
+		@total_bdft = 0.0
+		@running_total_count = 0
+		@header_area.backgroundColor = UIColor.colorWithRed(0.84, green:0.26, blue: 0.21, alpha: 0.8)
+		position = 50
 
 		@tag_view_area.subviews.each { |subview| subview.removeFromSuperview }
+		@header_area.subviews.each { |subview| subview.removeFromSuperview }
+		@nextBtn.enabled = false
+
+		vmi_customer = createLabel
+		vmi_customer.textColor = UIColor.whiteColor
+		vmi_customer.textAlignment = UITextAlignmentCenter
+		vmi_customer.text = "Customer Name: #{customer}"
+		vmi_customer.frame = [[0,20], [@header_area.frame.size.width, 20]]
+
+		vmi_weight = createLabel
+		vmi_weight.textColor = UIColor.whiteColor
+		vmi_weight.textAlignment = UITextAlignmentCenter
+		vmi_weight.text = "Weight: #{weight}"
+		vmi_weight.frame = [[0,40], [@header_area.frame.size.width, 20]]
+
+		vmi_fbm = createLabel
+		vmi_fbm.textColor = UIColor.whiteColor
+		vmi_fbm.textAlignment = UITextAlignmentCenter
+		vmi_fbm.frame = [[0,60], [@header_area.frame.size.width, 20]]
+
+		@running_total = createLabel
+		@running_total.textColor = UIColor.whiteColor
+		@running_total.frame = [[0,80], [@header_area.frame.size.width, 20]]
+		@running_total.adjustsFontSizeToFitWidth
+		@running_total.textAlignment = UITextAlignmentCenter
+		@running_total.text = "Selected Totals: LB: _#{@total_weight}_   BDFT _#{@total_bdft}_"
+
+		@running_count = createLabel
+		@running_count.textColor = UIColor.whiteColor
+		@running_count.frame = [[0,100], [@header_area.frame.size.width, 20]]
+		@running_count.adjustsFontSizeToFitWidth
+		@running_count.textAlignment = UITextAlignmentCenter
+
+		@header_area.addSubview(vmi_customer)
+		@header_area.addSubview(vmi_weight)
+		@header_area.addSubview(vmi_fbm)
+		@header_area.addSubview(@running_total)
+		@header_area.addSubview(@running_count)
+
+		vmiHeader = UIView.new
+		vmiHeader.backgroundColor = UIColor.grayColor
+		vmiHeader.frame = [[0,0],[self.view.frame.size.width - 400,50]]
+
+		tagheader = UILabel.alloc.initWithFrame([[50,0],[100,50]])
+		tagheader.numberOfLines = 1
+		tagheader.text = "Tag Num."
+		tagheader.textColor = UIColor.whiteColor
+		
+		tagItem = UILabel.alloc.initWithFrame([[150,0],[100,50]])
+		tagItem.numberOfLines = 1
+		tagItem.text = "Item Num."
+		tagItem.textColor = UIColor.whiteColor
+		
+		tagQty = UILabel.alloc.initWithFrame([[250,0],[100,50]])
+		tagQty.numberOfLines = 1
+		tagQty.text = "Qty"
+		tagQty.textColor = UIColor.whiteColor
+		tagQty.textAlignment = UITextAlignmentRight
+
+		tagLbl = UILabel.alloc.initWithFrame([[360,0],[100,50]])
+		tagLbl.numberOfLines = 1
+		tagLbl.text = "LB"
+		tagLbl.textColor = UIColor.whiteColor
+		tagLbl.textAlignment = UITextAlignmentCenter
+
+		tagBdft = UILabel.alloc.initWithFrame([[460,0],[50,50]])
+		tagBdft.numberOfLines = 1
+		tagBdft.text = "BDFT"
+		tagBdft.textColor = UIColor.whiteColor
+		tagBdft.textAlignment = UITextAlignmentRight
+
+		vmiHeader.addSubview(tagheader)
+		vmiHeader.addSubview(tagItem)
+		vmiHeader.addSubview(tagQty)
+		vmiHeader.addSubview(tagLbl)
+		vmiHeader.addSubview(tagBdft)
+
+		@tag_view_area.addSubview(vmiHeader)
+
+		@tag_numbers = tag_numbers.map { |h| h['tttag'] }
+
+		@running_count.text = "#{@running_total_count} out of #{@tag_numbers.count} tags scanned."
 
 		tag_numbers.each do |tag_value|
 			longGesture = UITapGestureRecognizer.alloc.initWithTarget(self, action: 'handleTapGestures:')
 
 			parentView = UIView.new
-			parentView.frame = [[100,position],[self.view.frame.size.width - 400,50]]
+			parentView.frame = [[50,position],[self.view.frame.size.width - 400,50]]
 			parentView.tag = tag_value['tttag'].to_i
 
-			label = UILabel.alloc.initWithFrame([[100, 0],[self.view.frame.size.width - 400,50]])
-			label.numberOfLines = 1
-			label.text = "#{tag_value['tttag']}"
+			vmi_tag = UILabel.alloc.initWithFrame([[0, 0],[100,50]])
+			vmi_tag.adjustsFontSizeToFitWidth = true
+			vmi_tag.numberOfLines = 1
+			vmi_tag.text = "#{tag_value['tttag']}"
+
+			vmi_item = UILabel.alloc.initWithFrame([[100, 0],[100,50]])
+			vmi_item.adjustsFontSizeToFitWidth = true
+			vmi_item.numberOfLines = 1
+			vmi_item.text = "#{tag_value['ttitem']}"
+
+			vmi_qty = UILabel.alloc.initWithFrame([[200, 0],[100,50]])
+			vmi_qty.adjustsFontSizeToFitWidth = true
+			vmi_qty.textAlignment = UITextAlignmentRight
+			vmi_qty.numberOfLines = 1
+			vmi_qty.text = "#{tag_value['ttqty']}"
+
+			vmi_lbl = UILabel.alloc.initWithFrame([[310, 0],[100,50]])
+			vmi_lbl.adjustsFontSizeToFitWidth = true
+			vmi_lbl.textAlignment = UITextAlignmentCenter
+			vmi_lbl.numberOfLines = 1
+			vmi_lbl.text = "#{tag_value['ttlbl']}"
+
+			vmi_bdft = UILabel.alloc.initWithFrame([[410, 0],[50,50]])
+			vmi_bdft.adjustsFontSizeToFitWidth = true
+			vmi_bdft.textAlignment = UITextAlignmentRight
+			vmi_bdft.numberOfLines = 1
+			vmi_bdft.text = "#{tag_value['ttbdft']}"
+
+			bdtfm += tag_value['ttbdft']
 
 			breakline = UILabel.new
 			breakline.backgroundColor = UIColor.blackColor
-			breakline.frame = [[-100,50], [self.view.frame.size.width - 400,2]]
+			breakline.frame = [[-100,50], [self.view.frame.size.width - 375,2]]
 
-			parentView.addSubview(label)
+			parentView.addSubview(vmi_tag)
+			parentView.addSubview(vmi_item)
+			parentView.addSubview(vmi_qty)
+			parentView.addSubview(vmi_lbl)
+			parentView.addSubview(vmi_bdft)
 			parentView.addSubview(breakline)
 			parentView.addGestureRecognizer(longGesture)
 
 			@tag_view_area.addSubview(parentView)
 
 			position += 50
+			vmi_tag = nil
+			vmi_item = nil
+			vmi_qty = nil
+			vmi_lbl = nil
+			vmi_bdft = nil
 		end
 		@hidden_tag_num.becomeFirstResponder
 		@tag_view_area.contentSize = CGSizeMake(self.view.frame.size.width - 440, position + 50)
 
+		vmi_fbm.text = "BDFT: #{bdtfm}"
+
+		vmi_customer = nil
+		vmi_weight = nil
+		vmi_fbm = nil
+		vmiHeader = nil
+		tagheader = nil
+		tagItem = nil
+		tagQty = nil
+		tagLbl = nil
+		tagBdft = nil
 	end
 
 	def sharedLayoutParameters(layout, *params)
@@ -1480,41 +1679,94 @@ class ScreenBuilder < UIViewController
 	end
 
 	def processTagScan(workingView)
-		remainingTags = @tag_view_area.subviews.count
 		unless workingView.nil?
-			if workingView.subviews.count == 2
-				success = UIImageView.alloc.initWithFrame([[0,0], [50, 50]])
+			if workingView.subviews.count == 6
+				@scanned_tags << workingView.subviews[0].text if @tag_numbers.include?(workingView.subviews[0].text)
+				success = UIImageView.alloc.initWithFrame([[475, 0],[50,50]])
 				success.image = UIImage.imageNamed("green_check.png")
 				workingView.addSubview(success)
 
-				@tag_view_area.subviews.map do |detailView|
-					remainingTags -= 1 if detailView.subviews.count == 3
-				end
-			else
-				App.alert("Tag has already been scanned.")
-			end
-		end
+				@total_weight += workingView.subviews[3].text.to_f.round(2)
+				@total_bdft += workingView.subviews[4].text.to_f.round(2)
 
-		if remainingTags == 0
-			APIRequest.new.post('submit_vmi_tag', {distribution_num: @distribution_num.text, user: UIApplication.sharedApplication.delegate.username.downcase, action: 'pick'}) do |result|
-				if result[:success] == "Good"
-					App.alert("Order successfully placed.")
-				else
-					App.alert("Error! #{result[:error]}")
+				@running_total_count += 1
+
+				@running_count.text = "#{@running_total_count} out of #{@tag_numbers.count} tags scanned."
+				@running_total.text = "Selected Totals: LB: _#{@total_weight.round(2)}_   BDFT _#{@total_bdft.round(2)}_"
+			else
+				@scanned_tags.delete_if {|value| value == workingView.subviews[0].text }
+				workingView.subviews.last.removeFromSuperview
+
+				@total_weight -= workingView.subviews[3].text.to_f.round(2)
+				@total_bdft -= workingView.subviews[4].text.to_f.round(2)
+
+				if @total_weight < 0
+					@total_weight = 0
 				end
-				@tag_view_area.subviews.each { |subview| subview.removeFromSuperview }
+
+				if @total_bdft < 0
+					@total_bdft = 0
+				end
+
+				@running_total_count -= 1
+
+				@running_count.text = "#{@running_total_count} out of #{@tag_numbers.count} tags scanned."
+				@running_total.text = "Selected Totals: LB: _#{@total_weight.round(2)}_   BDFT _#{@total_bdft.round(2)}_"
+			end
+			if @scanned_tags.empty?
+				UIApplication.sharedApplication.delegate.vmi_complete = false
+				@nextBtn.enabled = false
+			else
+				UIApplication.sharedApplication.delegate.vmi_complete = true
 				@nextBtn.enabled = true
-				@distribution_num.text = ''
-				@distribution_num.becomeFirstResponder	
 			end
 		end
 	end
 
+	def closePicker
+		@distribution_num.resignFirstResponder
+	end
+
+	def switchPicker
+		@distribution_num.resignFirstResponder
+
+		if @distribution_num.inputView.nil?
+			@distribution_num.inputView = @dod_picker
+		else
+			@distribution_num.inputView = nil
+		end
+
+		@distribution_num.becomeFirstResponder
+	end
+
+	def getDods(viewController)
+		@distribution_num.inputAccessoryView = @toolbar
+		APIRequest.new.get('dods', {}) do |result|
+			if result["success"] == "Good"
+				@dod_picker = UIPickerView.new
+				@dod_picker.showsSelectionIndicator = true
+				@dod_picker.frame = CGRectMake(20, 100, 260, 220)
+				@dod_picker.delegate = self
+				@dod_picker.dataSource = self
+				
+				@dod_hash = result["INFO"]
+
+				@distribution_num.userInteractionEnabled = true
+				@distribution_num.inputView = @dod_picker
+				
+				@distribution_num.becomeFirstResponder
+			else
+				App.alert("Error when getting list of DOD's by customer. #{result['error']}")
+			end
+		end
+	end
+
+
 	def textField(textField, shouldChangeCharactersInRange: range, replacementString: replacement)
 		if textField == @remarks
-			unless textField.text.length < 13
-				App.alert("Cannot use more then 20 characters.")
-				textField.text = textField.text[0..13]
+			unless textField.text.length < 18
+				App.alert("Cannot use more then 18 characters.")
+				textField.text = textField.text[0..18]
 			end
 		end
 		textField
@@ -1631,7 +1883,7 @@ class ScreenBuilder < UIViewController
 	end
 
 	def textFieldShouldReturn(textfield)
-		if  @header.text.match(/^\w+\s+/)[0].strip.downcase == "shp"
+		if  @header.text.match(/^\w+\s+/)[0].strip.downcase == "pick"
 			effective_date = Time.now.strftime("%m/%d/%y")
 			APIRequest.new.get('get_tag_info', {tag: textfield.text, user: UIApplication.sharedApplication.delegate.username.downcase, site: UIApplication.sharedApplication.delegate.site.downcase}) do |result|
 				current_view = textfield.superview.subviews
@@ -1654,6 +1906,8 @@ class ScreenBuilder < UIViewController
 	def pickerView(pickerView, numberOfRowsInComponent: componenent)
 		if pickerView == @prod_line_picker
 			@prod_lines.count
+		elsif pickerView == @dod_picker
+			@dod_hash.count
 		else
 			@por_loc.count
 		end
@@ -1662,6 +1916,9 @@ class ScreenBuilder < UIViewController
 	def pickerView(pickerView, titleForRow: row, forComponent: componenent)
 		if pickerView == @prod_line_picker
 			@prod_lines[row]
+		elsif pickerView == @dod_picker
+			dod_hash = @dod_hash.map { |dod| { "#{dod['iname']} - #{dod['icreated']}" => dod['idod']} }
+			dod_hash[row].values.first + " (#{dod_hash[row].keys.first})"
 		else
 			@por_loc[row]
 		end
@@ -1675,6 +1932,10 @@ class ScreenBuilder < UIViewController
 		if pickerView == @prod_line_picker
 			@prod_line.text = @prod_lines[row]
 			@prod_line.resignFirstResponder
+		elsif pickerView == @dod_picker
+			dod_hash = @dod_hash.map { |dod| {dod['iname'] => dod['idod']} }
+			@distribution_num.text = dod_hash[row].values.first
+			
 		else
 			@data_container.subviews.each do |subview|
 				subview.subviews.each do |subview|

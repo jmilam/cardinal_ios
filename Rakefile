@@ -15,13 +15,13 @@ Motion::Project::App.setup do |app|
   # Use `rake config' to see complete project settings.
 
   # app.name = 'Cardinal'
-  # app.version = '2.0.10'
-  # app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/898767a3-0d05-441a-bf9d-4327c9ac44e4.mobileprovision'
+  # app.version = '2.0.26'
+  # app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/Cardinal2018.mobileprovision'
   # app.identifier = 'com.enduraproducts.cardinal'
 
   app.name = 'Cardinal Test'
-  app.version = '2.0.17'
-  app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/c02807cf-a275-4ada-8751-90107b08ccc1.mobileprovision'
+  app.version = '2.0.51'
+  app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/CardinalTest2018.mobileprovision'
   app.identifier = 'com.enduraproducts.cardinaltest'
 
   app.device_family = [:ipad]

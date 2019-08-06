@@ -4,6 +4,7 @@ class AppDelegate
   attr_accessor :site
 	attr_accessor :api_request_result
   attr_accessor :user_roles
+  attr_accessor :vmi_complete
 
   def application(application, didFinishLaunchingWithOptions:launchOptions)
     return true if RUBYMOTION_ENV == 'test'

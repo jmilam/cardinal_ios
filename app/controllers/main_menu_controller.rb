@@ -17,7 +17,7 @@ class MainMenuController < UIViewController
 		button = nil
 		@po_items_count = 0
 
-		@headers = {"Inventory Control" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)", "POR (Purchase Order Receipt)"], "Manufacturing" => ["BKF (Backflush)"], "Label Printing" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Distribution" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "SHP (Shipping)", "VMI SHP"]}
+		@headers = {"Inventory Control" => ["PCT (Pallet Cycle Count)", "PDL (Pallet Delete)", "PLO (Pallet Load)", "PMV (Pallet Move)", "PUL (Pallet Unload)", "POR (Purchase Order Receipt)", "Inventory Detail by Item Browse"], "Manufacturing" => ["BKF (Backflush)"], "Label Printing" => ["TPT (Tag Reprint)", "GLB (General Label)", "Skid label"], "Distribution" => ["CAR (Carton Create)", "CTE (Carton Edit)", "SKD (Skid Create)", "SKE (Skid Edit)", "PICK (Shipping)", "VMI PICK"]}
 
 		setInitialVariableValues
 
@@ -335,11 +335,32 @@ class MainMenuController < UIViewController
 		title = @header.text.downcase
 
 		if !title.match(/vmi/).nil?
-			APIRequest.new.get('vmi_details', {distribution_num: @distribution_num.text, user: UIApplication.sharedApplication.delegate.username.downcase, action: 'get'}) do |result|
-				if result[:success] == "Good"
-					@builder.buildVMI(self, result["INFO"])
-				else
-					App.alert("Error! #{result[:error]}")
+			if UIApplication.sharedApplication.delegate.vmi_complete
+				APIRequest.new.post('submit_vmi_tag', {distribution_num: @distribution_num.text,
+																							 user: UIApplication.sharedApplication.delegate.username.downcase,
+																							 action: 'pick',
+																							 tags: @builder.scanned_tags.join(',')}) do |result|
+					if result[:success] == "Good"
+						App.alert("Order successfully placed.")
+					else
+						App.alert("Error! #{result[:error]}")
+					end
+					UIApplication.sharedApplication.delegate.vmi_complete = nil
+					@builder.tag_view_area.subviews.each { |subview| subview.removeFromSuperview }
+					@builder.header_area.subviews.each { |subview| subview.removeFromSuperview }
+
+					@distribution_num.text = ''
+					@distribution_num.becomeFirstResponder	
+					@builder.header_area.backgroundColor = UIColor.whiteColor
+					@builder.scanned_tags = []
+				end
+			else
+				APIRequest.new.get('vmi_details', {distribution_num: @distribution_num.text, user: UIApplication.sharedApplication.delegate.username.downcase, action: 'get'}) do |result|
+					if result[:success] == "Good"
+						@builder.buildVMI(self, result["INFO"], result["Weight"], result["Customer"], result["FBM"])
+					else
+						App.alert("Error! #{result[:error]}")
+					end
 				end
 			end
 		else
@@ -347,7 +368,7 @@ class MainMenuController < UIViewController
 			tag = !title.match(/plo/).nil? ? @new_tag_num.text : @tag_num.text
 			current_text = !title.match(/plo/).nil? ? @new_tag_num.text : @tag_num.text
 			APIRequest.new.get('tag_details', {tag: tag, user_id: UIApplication.sharedApplication.delegate.username.downcase}) do |result|
-				if  @header.text.match(/^\w+\s+/)[0].strip == "POR" || @header.text.match(/^\w+\s+/)[0].strip == "SHP" || @header.text.match(/^\w+\s+/)[0].strip == "CAR" || @header.text.match(/^\w+\s+/)[0].strip == "SKD"
+				if  @header.text.match(/^\w+\s+/)[0].strip == "POR" || @header.text.match(/^\w+\s+/)[0].strip == "PICK" || @header.text.match(/^\w+\s+/)[0].strip == "CAR" || @header.text.match(/^\w+\s+/)[0].strip == "SKD"
 				temp = self.view.frame
 				temp.origin.x = -1000
 				UIView.animateWithDuration(0.5, delay: 0.0, options: UIViewAnimationCurveEaseOut, animations: lambda { @tag_num.frame = temp}, completion: lambda {
@@ -371,7 +392,7 @@ class MainMenuController < UIViewController
 						end
 					when "SKD"
 						@builder.buildSKD2(self, current_text)
-					when "SHP"
+					when "PICK"
 						@builder.buildSHP2(self, current_text)
 					else
 						@builder.buildGenericView(self, current_text)
@@ -432,7 +453,7 @@ class MainMenuController < UIViewController
 					@builder.buildSKD1(self, nil)
 				when "CAR"
 					@builder.buildCAR1(self, nil)
-				when "SHP"
+				when "PICK"
 					@builder.buildSHP1(self, nil)
 				when "BKF"
 					@builder.buildBKF(self, nil)
@@ -476,6 +497,18 @@ class MainMenuController < UIViewController
 		self.view.addSubview(@spinner)
 	end
 
+	def delayShowSpinner
+		self.navigationItem.rightBarButtonItem.enabled = false unless self.navigationItem.rightBarButtonItem.nil?
+		@spinner = UIActivityIndicatorView.alloc.initWithActivityIndicatorStyle(UIActivityIndicatorViewStyleWhiteLarge)
+		@spinner.color = UIColor.blueColor
+		@spinner.frame = [[self.view.frame.size.width / 2,self.view.frame.size.height / 3],[100,100]]
+		@spinner.color = UIColor.blueColor
+		self.performSelector("stopSpinner", withObject:nil, afterDelay:12.0)
+		@spinner.startAnimating
+		self.view.addSubview(@spinner)
+	end
+
+
 	def stopSpinner
 		self.view.subviews.each do |view|
 			if view.class == UIActivityIndicatorView
@@ -516,7 +549,7 @@ class MainMenuController < UIViewController
 		  	
 		  	@po_items = result["result"]["Lines"]
 		  	@po_items_count = result["result"]["Lines"].count
-		  	@builder.buildPOR2(self, {po_items: @po_items, items_count: @po_items_count, locations: @locations, default_locations: @locations_by_item})
+		  	@builder.buildPOR2(self, {po_items: @po_items, items_count: @po_items_count, locations: @locations, default_locations: @locations_by_item, po_number: po_number})
 			else
 				@builder.buildPOR1(self, nil)
 				@builder.updateAlertArea("failure", result["result"])
@@ -534,27 +567,33 @@ class MainMenuController < UIViewController
 		po_text = @po_number.text
 
 		AFMotion::JSON.get("http://#{@qad_env}.endura.enduraproducts.com/cgi-bin/#{@qad_api}/xxapiporkey.p?key=#{result["unique_key"]}&userid=#{UIApplication.sharedApplication.delegate.username.downcase}") do |result|
-			case result.object["Status"].downcase
-			when "wait" 
-				sleep 5
-			when "error"
-				self.navigationItem.rightBarButtonItem.enabled = true
-				@builder.updateAlertArea("failure", "#{result.object["Error"]}")
-				stopSpinner
-				break
-			else
-				self.navigationItem.rightBarButtonItem.enabled = true
+			if result.success?
+		    case result.object["Status"].downcase
+				when "wait" 
+					sleep 5
+				when "error"
+					self.navigationItem.rightBarButtonItem.enabled = true
+					@builder.updateAlertArea("failure", "#{result.object["Error"]}")
+					stopSpinner
+					break
+				else
+					self.navigationItem.rightBarButtonItem.enabled = true
 
-				clearSubViews
-				@po_number.text = po_text
-				poValidate(@po_number.text)
-				@builder.updateAlertArea
-				po_text = nil
+					clearSubViews
+					@po_number.text = po_text
+					poValidate(@po_number.text)
+					@builder.updateAlertArea
+					po_text = nil
 
-				stopSpinner
-				break
+					stopSpinner
+					break
+				end
+				loopPORcheck(original_request)
+		  elsif result.failure?
+		  	App.alert("There was a failure on the API request")
+		  	stopSpinner
+		  	break
 			end
-			loopPORcheck(original_request)
 		end
 	end
 	
