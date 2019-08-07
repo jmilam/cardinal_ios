@@ -85,12 +85,6 @@ class ScreenBuilder < UIViewController
 
 		@printer_label = build_group_label('Printer')
 
-		@login = UIButton.buttonWithType(UIButtonTypeRoundedRect)
-		@login.setTitle('Login', forState:UIControlStateNormal)
-		@login.accessibilityLabel = 'Login'
-		@login.setTitle('Logging In..', forState:UIControlStateSelected)
-		@login.addTarget(viewController, action: 'login', forControlEvents:UIControlEventTouchUpInside)
-
 		@group_1 = create_textfield_group(@username_label, @username, viewController)
 		@group_2 = create_textfield_group(@password_label, @password, viewController)
 		@group_3 = create_textfield_group(@site_num_label, @site_num, viewController)
@@ -98,15 +92,14 @@ class ScreenBuilder < UIViewController
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
-			layout.subviews "header" => @header, "group_1" => @group_1, "group_2" => @group_2, "group_3" => @group_3, "group_4" => @group_4, "login" => @login, "footer" => @footer
+			layout.subviews "header" => @header, "group_1" => @group_1, "group_2" => @group_2, "group_3" => @group_3, "group_4" => @group_4, "footer" => @footer
 			layout.metrics "margin" => 10, "height" => 50
-			layout.vertical "|-#{@nav_bar_height}-[header(==height)]-125-[group_1(==height)]-margin-[group_2(==height)]-margin-[group_3(==height)]-margin-[group_4(==height)]-margin-[login(==height)]-(>=15)-[footer(==height)]-|"
+			layout.vertical "|-#{@nav_bar_height}-[header(==height)]-25-[group_1(==height)]-margin-[group_2(==height)]-margin-[group_3(==height)]-margin-[group_4(==height)]-(>=15)-[footer(==height)]-|"
 			layout.horizontal "|-0-[header]-0-|"
 			layout.horizontal "|-(>=100)-[group_1(==300)]-(>=100)-|"
 			layout.horizontal "|-(>=100)-[group_2(==300)]-(>=100)-|"
 			layout.horizontal "|-(>=100)-[group_3(==300)]-(>=100)-|"
 			layout.horizontal "|-(>=100)-[group_4(==300)]-(>=100)-|"
-			layout.horizontal "|-10-[login]-10-|"
 			layout.horizontal "|-0-[footer]-0-|"
 		end
 
@@ -352,6 +345,7 @@ class ScreenBuilder < UIViewController
 		else
 			@tag_num_label.text = 'Enter Tag Number'
 			@tag_num_group = create_textfield_group(@new_tag_num_label, @new_tag_num, viewController) 
+
 			Motion::Layout.new do |layout|
 				layout.view viewController.view
 				layout.subviews "table" => @table, "header" => @header, "tag_num_label" => @tag_num_label, "tag_num" => @tag_num, "alert_area" => @alert_area
@@ -471,11 +465,11 @@ class ScreenBuilder < UIViewController
 	end
 
 	def buildPMV(viewController, current_text)
+		@back_btn = UIBarButtonItem.alloc.initWithTitle("<< Back", style:UIBarButtonItemStylePlain, target:viewController, action: "back")  
 		viewController.stopSpinner
 		@from_loc.userInteractionEnabled = false
 		@to_loc.userInteractionEnabled = true
-		viewController.navigationItem.rightBarButtonItem = @submitBtn
-		viewController.navigationItem.rightBarButtonItem.enabled = true
+		viewController.navigationItem.rightBarButtonItems = [@submitBtn, @back_btn]
 		@new_tag_num.text = current_text
 		@new_tag_num.userInteractionEnabled = false
 		@to_loc.becomeFirstResponder
@@ -484,7 +478,7 @@ class ScreenBuilder < UIViewController
 		@tag_num_group = create_textfield_group(@new_tag_num_label, @new_tag_num, viewController) 
 		@item_num_group = create_textfield_group(@item_num_label, @item_num, viewController)
 		@from_loc_group = create_textfield_group(@from_loc_label, @from_loc, viewController) 
-		@to_loc_group = create_textfield_group(@to_loc_label, @to_loc, viewController)
+		@to_loc_group = create_textfield_group(@to_loc_label, @to_loc, viewController) 
 
 		Motion::Layout.new do |layout|
 			layout.view viewController.view
@@ -1773,7 +1767,6 @@ class ScreenBuilder < UIViewController
 	end
 
 	def textFieldDidBeginEditing(textField)
-
 	end
 	
 	def textFieldDidEndEditing(textfield)
@@ -1900,6 +1893,8 @@ class ScreenBuilder < UIViewController
 			workingView = @tag_view_area.viewWithTag(textfield.text.to_i)
 			processTagScan(workingView)
 			textfield.text = ''
+		elsif @header.text.match(/^\w+\s+/)[0].strip.downcase == "pmv"
+			@next_button.sendActionsForControlEvents(UIControlEventTouchUpInside)
 		end
 	end
 

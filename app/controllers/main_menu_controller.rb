@@ -10,8 +10,9 @@ class MainMenuController < UIViewController
 
 		search = UISearchBar.new
 		search.delegate = self
-		search.frame = [[self.view.frame.size.width - 300,-10],[200,50]]
+		search.frame = [[self.view.frame.size.width - 350,-10],[200,50]]
 		self.navigationController.navigationBar.addSubview(search)
+		self.navigationController.navigationBar.topItem.title = "Log Out"
 
 		img = nil
 		button = nil
@@ -434,6 +435,14 @@ class MainMenuController < UIViewController
 				end
 			end
 		end
+	end
+
+	def back
+		clearSubViews
+		@builder.clearAlertArea
+		@builder.clearTextFields
+
+		functionStartingPoint('pmv')
 	end
 
 	def functionStartingPoint(header)
