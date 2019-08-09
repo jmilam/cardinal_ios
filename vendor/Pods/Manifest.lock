@@ -22,12 +22,11 @@ PODS:
     - AFNetworking/NSURLSession
 
 DEPENDENCIES:
-  - AFNetworking
   - AFNetworking (~> 2.5.0)
 
 SPEC CHECKSUMS:
   AFNetworking: 05edc0ac4c4c8cf57bcf4b84be5b0744b6d8e71e
 
-PODFILE CHECKSUM: 88d05a41dd3904af982b01cffbe2246586cc90c2
+PODFILE CHECKSUM: da771c1b51e28dd81258e9443c79bdaf383a5606
 
 COCOAPODS: 1.3.1

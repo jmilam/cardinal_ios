@@ -13,6 +13,19 @@ class APIRequest
 		end
 	end
 
+	def post(type=nil, params=nil, &block)
+		url = getUrl(type)
+
+		AFMotion::JSON.post("#{url}", params) do |result|
+			if result.success?
+				result = BW::JSON.parse(result.body)
+				block.call(result)
+		  elsif result.failure?    
+		    block.call({success: false, error: result.error.localizedDescription})
+		  end
+		end
+	end
+
 	def getUrl(type)
 		if NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleDisplayName") == "Cardinal"
 			@api_url = "http://webapi.enduraproducts.com/api/endura"
@@ -34,6 +47,10 @@ class APIRequest
 		else
 		 	"#{@api_url}/transactions/#{type.downcase.match(/\w+/)[0]}"
 		end
+	end
+
+	def success?(statusCode)
+		statusCode == 200
 	end
 
 end

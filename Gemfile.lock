@@ -83,7 +83,6 @@ PLATFORMS
 DEPENDENCIES
   afmotion
   bubble-wrap
-  cocoapods
   ib
   motion-cocoapods
   motion-layout
