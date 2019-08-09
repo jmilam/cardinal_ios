@@ -1,6 +1,9 @@
 .repl_history
 build
 tags
+vender/Pods/.build/
+vendor/Pods/build-iPhoneOS/
+vendor/Pods/build-iPhoneSimulator/
 app/pixate_code.rb
 resources/*.nib
 resources/*.momd

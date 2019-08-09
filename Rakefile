@@ -22,7 +22,7 @@ Motion::Project::App.setup do |app|
   app.name = 'Cardinal Test'
   app.version = '2.0.53'
   app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/CardinalTest2018.mobileprovision'
-  app.identifier = 'com.enduraproducts.cardinaltest'
+
 
   app.device_family = [:ipad]
   app.info_plist['NSAppTransportSecurity'] = { 'NSAllowsArbitraryLoads' => true }
@@ -32,6 +32,7 @@ Motion::Project::App.setup do |app|
 
   app.archs["iphoneSimulator"] = ["i386"]
 
+  # app.archs["iPhoneOS"] = ["armv7"]
   app.icons = ["cardinal.jpg"]
 end
 
