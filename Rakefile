@@ -20,9 +20,9 @@ Motion::Project::App.setup do |app|
   # app.identifier = 'com.enduraproducts.cardinal'
 
   app.name = 'Cardinal Test'
-  app.version = '2.0.53'
-  app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/CardinalTest2018.mobileprovision'
-
+  app.version = '2.0.61'
+  app.provisioning_profile = '~/Library/MobileDevice/Provisioning Profiles/CardinalTest2019.mobileprovision'
+  app.identifier = 'com.enduraproducts.cardinaltest'
 
   app.device_family = [:ipad]
   app.info_plist['NSAppTransportSecurity'] = { 'NSAllowsArbitraryLoads' => true }

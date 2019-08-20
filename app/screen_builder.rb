@@ -470,6 +470,7 @@ class ScreenBuilder < UIViewController
 		@from_loc.userInteractionEnabled = false
 		@to_loc.userInteractionEnabled = true
 		viewController.navigationItem.rightBarButtonItems = [@submitBtn, @back_btn]
+		viewController.navigationItem.rightBarButtonItem.enabled = true
 		@new_tag_num.text = current_text
 		@new_tag_num.userInteractionEnabled = false
 		@to_loc.becomeFirstResponder
@@ -1894,7 +1895,10 @@ class ScreenBuilder < UIViewController
 			processTagScan(workingView)
 			textfield.text = ''
 		elsif @header.text.match(/^\w+\s+/)[0].strip.downcase == "pmv"
-			@next_button.sendActionsForControlEvents(UIControlEventTouchUpInside)
+			UIApplication.sharedApplication.sendAction(@nextBtn.action,
+                                           to:@nextBtn.target,
+                                         	 from:nil,
+                                     			 forEvent:nil)
 		end
 	end
 
