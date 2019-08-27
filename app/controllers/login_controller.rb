@@ -6,7 +6,6 @@ class LoginController < UIViewController
 		self.view.backgroundColor = UIColor.whiteColor
 		self.automaticallyAdjustsScrollViewInsets = false
 
-
 		@builder = ScreenBuilder.alloc.initWithView(self)
 
 		@builder.buildLogIn(self)
@@ -15,6 +14,12 @@ class LoginController < UIViewController
 		@site_num = @builder.site_num
 		@username = @builder.username
 		@password = @builder.password
+		@login = UIButton.buttonWithType(UIButtonTypeRoundedRect)
+		@login.setTitle('Login', forState:UIControlStateNormal)
+		@login.accessibilityLabel = 'Login'
+		@login.setTitle('Logging In..', forState:UIControlStateSelected)
+		@login.addTarget(self, action: 'login', forControlEvents:UIControlEventTouchUpInside)
+		self.navigationItem.rightBarButtonItem = UIBarButtonItem.alloc.initWithCustomView(@login)
 		super
 	end
 
@@ -38,6 +43,7 @@ class LoginController < UIViewController
 						end
 					end
 				else
+					p result
 					stopSpinner
 					App.alert("Printer is invalid. Please enter a valid printer.")
 				end
@@ -64,5 +70,4 @@ class LoginController < UIViewController
 			end
 		end
 	end
-
 end
